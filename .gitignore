@@ -1,62 +1,31 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
+# 密钥和证书
+*.pem
+*.key
+*.cert
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 日志文件
+logs/
+*.log
+
+# 依赖目录
+node_modules/
+vendor/
+
+# 构建输出
 dist/
 build/
-.eggs/
-*.egg
 
-# Virtual Environment
-venv/
-.venv/
-env/
-
-# IDE
+# 编辑器配置
 .idea/
 .vscode/
 *.swp
 *.swo
-*~
 
-# SQLite Database
-server/data/*.db
-server/data/*.db-journal
-server/data/*.db-wal
-server/data/*.db-shm
-
-# Logs
-*.log
-logs/
-
-# OS
+# 操作系统文件
 .DS_Store
 Thumbs.db
-Desktop.ini
-
-# Environment
-.env
-.env.local
-
-# Node (web frontend)
-web/node_modules/
-web/dist/
-web/.nuxt/
-web/.output/
-
-# Android
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/*.apk
-android/*.aab
-
-# Mini Program
-miniapp/node_modules/
-miniapp/miniprogram_npm/
-
-# Uploads
-server/uploads/
