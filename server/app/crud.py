@@ -767,3 +767,290 @@ def get_trend(db: Session, start_date: date, end_date: date,
         })
 
     return result
+
+
+def get_balance_trend(db: Session, start_date: date, end_date: date,
+                      account_id: Optional[int] = None) -> List[dict]:
+    """
+    获取账户余额趋势数据。
+
+    计算每个账户在指定日期范围内每天的余额变化。
+    通过从当前余额倒推计算历史余额。
+
+    Args:
+        db: 数据库会话
+        start_date: 开始日期
+        end_date: 结束日期
+        account_id: 账户ID (None表示所有账户)
+
+    Returns:
+        List[dict]: 账户余额趋势列表，每项包含account_id, account_name, data
+    """
+    accounts = db.query(Account).all()
+    if account_id:
+        accounts = [a for a in accounts if a.id == account_id]
+
+    result = []
+    for account in accounts:
+        current_balance = account.balance
+
+        bills = db.query(Bill).filter(
+            Bill.bill_date >= start_date,
+            Bill.bill_date <= end_date,
+            ((Bill.account_id == account.id) | (Bill.transfer_to_account_id == account.id))
+        ).order_by(Bill.bill_date.desc()).all()
+
+        date_balance = {}
+        current_date = end_date
+        temp_balance = current_balance
+
+        while current_date >= start_date:
+            date_str = current_date.strftime("%Y-%m-%d")
+            date_balance[date_str] = temp_balance
+            current_date = date.fromordinal(current_date.toordinal() - 1)
+
+        for bill in bills:
+            bill_date_str = bill.bill_date.strftime("%Y-%m-%d")
+            if bill_date_str in date_balance:
+                if bill.account_id == account.id:
+                    if bill.type == 1:
+                        temp_balance += bill.amount
+                    elif bill.type == 2:
+                        temp_balance -= bill.amount
+                    elif bill.type == 3:
+                        temp_balance += bill.amount
+                elif bill.transfer_to_account_id == account.id:
+                    temp_balance -= bill.amount
+
+                for d in sorted(date_balance.keys()):
+                    if d <= bill_date_str:
+                        date_balance[d] = temp_balance
+
+        data = []
+        for d in sorted(date_balance.keys()):
+            data.append({
+                "date": d,
+                "balance": round(date_balance[d], 2)
+            })
+
+        result.append({
+            "account_id": account.id,
+            "account_name": account.name,
+            "data": data
+        })
+
+    return result
+
+
+# ==================== Batch Import ====================
+
+def import_accounts_batch(db: Session, accounts: List[dict]) -> dict:
+    """
+    批量导入账户。
+
+    根据账户名称去重，已存在则跳过。
+
+    Args:
+        db: 数据库会话
+        accounts: 账户列表，每项包含name, type, icon, color, initial_balance
+
+    Returns:
+        dict: {"success": int, "skipped": int, "errors": List[str]}
+    """
+    success = 0
+    skipped = 0
+    errors = []
+
+    for item in accounts:
+        try:
+            name = item.get("name")
+            if not name:
+                errors.append(f"缺少账户名称: {item}")
+                continue
+
+            existing = db.query(Account).filter(Account.name == name).first()
+            if existing:
+                skipped += 1
+                continue
+
+            acc = Account(
+                name=name,
+                type=item.get("type", 1),
+                icon=item.get("icon", ""),
+                color=item.get("color", ""),
+                balance=item.get("initial_balance", 0) or 0,
+                initial_balance=item.get("initial_balance", 0) or 0,
+            )
+            db.add(acc)
+            success += 1
+        except Exception as e:
+            errors.append(f"导入账户 '{item.get('name')}' 失败: {str(e)}")
+
+    db.commit()
+    return {"success": success, "skipped": skipped, "errors": errors}
+
+
+def import_bills_batch(db: Session, bills: List[dict], account_name_map: dict) -> dict:
+    """
+    批量导入账单。
+
+    支持按账户名称和分类名称自动匹配。
+
+    Args:
+        db: 数据库会话
+        bills: 账单列表
+        account_name_map: 账户名称->ID的映射字典
+
+    Returns:
+        dict: {"success": int, "errors": List[dict]}
+            errors每项包含 index, original, reason
+    """
+    success = 0
+    errors = []
+
+    category_cache = {}
+
+    def get_category_id(cat_name: str, bill_type: int) -> Optional[int]:
+        """根据分类名称查找分类ID（支持模糊匹配）。"""
+        cache_key = f"{cat_name}_{bill_type}"
+        if cache_key in category_cache:
+            return category_cache[cache_key]
+
+        cats = db.query(Category).filter(
+            Category.name == cat_name, Category.type == bill_type
+        ).all()
+
+        if len(cats) == 1:
+            category_cache[cache_key] = cats[0].id
+            return cats[0].id
+
+        for cat in cats:
+            if cat.parent_id is None:
+                category_cache[cache_key] = cat.id
+                return cat.id
+
+        for cat in cats:
+            if cat_name in cat.name or cat.name in cat_name:
+                category_cache[cache_key] = cat.id
+                return cat.id
+
+        all_cats = db.query(Category).filter(Category.type == bill_type).all()
+        for cat in all_cats:
+            if cat_name == cat.name or cat_name in cat.name:
+                category_cache[cache_key] = cat.id
+                return cat.id
+
+        category_cache[cache_key] = None
+        return None
+
+    for i, item in enumerate(bills):
+        try:
+            account_name = item.get("account")
+            category_name = item.get("category")
+            bill_type = item.get("type", 1)
+
+            if bill_type == 3:
+                bill_type = 1
+
+            if not account_name:
+                errors.append({
+                    "index": i, "original": item,
+                    "reason": f"缺少账户名称"
+                })
+                continue
+
+            account_id = account_name_map.get(account_name)
+            if not account_id:
+                errors.append({
+                    "index": i, "original": item,
+                    "reason": f"未找到账户 '{account_name}'"
+                })
+                continue
+
+            category_id = None
+            if category_name:
+                category_id = get_category_id(category_name, bill_type)
+            if not category_id:
+                errors.append({
+                    "index": i, "original": item,
+                    "reason": f"未找到分类 '{category_name}'"
+                })
+                continue
+
+            amount = float(item.get("amount", 0))
+            if amount <= 0:
+                errors.append({
+                    "index": i, "original": item,
+                    "reason": f"金额必须大于0"
+                })
+                continue
+
+            bill_date_str = item.get("date") or item.get("bill_date")
+            if not bill_date_str:
+                errors.append({
+                    "index": i, "original": item,
+                    "reason": "缺少日期"
+                })
+                continue
+
+            from datetime import datetime as dt
+            try:
+                bill_date = dt.strptime(str(bill_date_str), "%Y-%m-%d").date()
+            except ValueError:
+                try:
+                    bill_date = dt.strptime(str(bill_date_str), "%Y/%m/%d").date()
+                except ValueError:
+                    errors.append({
+                        "index": i, "original": item,
+                        "reason": f"日期格式错误 '{bill_date_str}'，应为 YYYY-MM-DD"
+                    })
+                    continue
+
+            bill_time_str = item.get("time") or item.get("bill_time")
+            bill_time = None
+            if bill_time_str:
+                try:
+                    bill_time = dt.strptime(str(bill_time_str), "%H:%M").time()
+                except ValueError:
+                    try:
+                        bill_time = dt.strptime(str(bill_time_str), "%H:%M:%S").time()
+                    except ValueError:
+                        pass
+
+            tag_ids = item.get("tag_ids") or []
+            if isinstance(tag_ids, list) and len(tag_ids) > 0 and isinstance(tag_ids[0], str):
+                tag_ids = []
+
+            b = Bill(
+                account_id=account_id,
+                category_id=category_id,
+                type=bill_type,
+                amount=amount,
+                bill_date=bill_date,
+                bill_time=bill_time,
+                remark=str(item.get("remark") or ""),
+            )
+            db.add(b)
+            db.flush()
+
+            for tag_id in tag_ids:
+                db.add(BillTag(bill_id=b.id, tag_id=tag_id))
+
+            if bill_type == 1:
+                acc = db.query(Account).filter(Account.id == account_id).first()
+                if acc:
+                    acc.balance -= amount
+            elif bill_type == 2:
+                acc = db.query(Account).filter(Account.id == account_id).first()
+                if acc:
+                    acc.balance += amount
+
+            success += 1
+        except Exception as e:
+            errors.append({
+                "index": i, "original": item,
+                "reason": f"处理失败: {str(e)}"
+            })
+
+    db.commit()
+    return {"success": success, "errors": errors}

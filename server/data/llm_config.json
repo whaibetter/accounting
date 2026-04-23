@@ -1,0 +1,9 @@
+{
+  "provider": "openrouter",
+  "api_key": "gAAAAABp6KSWJEDKikOJMR9vnqDxI3bmrnmXEFmYZcNtA3XXxBpifIWngvK4ZSXk_DhIwWDvUhpWBK6Si60bG0HS8d4n-9XgMcOnDtALG1nsTS-PX4xcpVo1mIa8dSP4mMikVG2YGBpcy1Tz1N1ykext3jwFQ0OXwmXoK5veC2u6AXCSQ2_tAOQ=",
+  "base_url": "https://openrouter.ai/api/v1",
+  "model": "minimax/minimax-m2.5:free",
+  "temperature": 0.3,
+  "max_tokens": 1024,
+  "timeout": 60
+}

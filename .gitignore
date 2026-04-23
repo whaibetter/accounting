@@ -7,6 +7,8 @@
 .env
 .env.local
 .env.*.local
+web/.env.development
+web/.env.remote
 
 # 日志文件
 logs/
@@ -19,13 +21,62 @@ vendor/
 # 构建输出
 dist/
 build/
+*.apk
+*.aab
 
 # 编辑器配置
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# 操作系统文件
 .DS_Store
 Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.env3
+
+# Android
+*.class
+*.dex
+*.jar
+*.log
+local.properties
+.gradle/
+.cxx/
+*.lock
+package-lock.json
+
+# iOS
+*.xcuserstate
+*.xcworkspace
+Pods/
+
+# 临时文件
+*.tmp
+*.temp
+~*
+screen*.png
+ui*.xml
+*.crash
+logcat*.txt
+login_crash*.txt
+test_export*.xlsx
+build*.txt
+build_log*.txt
+
+# 服务相关
+accounting.service
+.spec-workflow/
+
+# 敏感数据文件
+server/data/.access_password
+server/data/.secret_key
+server/data/*.db
+server/data/*.sqlite

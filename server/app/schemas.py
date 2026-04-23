@@ -391,3 +391,29 @@ class TrendItemOut(BaseModel):
     period: str
     income: float
     expense: float
+
+
+class BalanceTrendItemOut(BaseModel):
+    """
+    余额趋势单项响应体。
+
+    Attributes:
+        date: 日期
+        balance: 当日余额
+    """
+    date: str
+    balance: float
+
+
+class AccountBalanceTrendOut(BaseModel):
+    """
+    账户余额趋势响应体。
+
+    Attributes:
+        account_id: 账户ID
+        account_name: 账户名称
+        data: 余额趋势数据列表
+    """
+    account_id: int
+    account_name: str
+    data: List[BalanceTrendItemOut]

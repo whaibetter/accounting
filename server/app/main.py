@@ -1,73 +1,71 @@
-"""
-FastAPI应用主入口模块。
-
-功能描述：
-    - 创建FastAPI应用实例
-    - 注册所有API路由
-    - 配置CORS跨域支持
-    - 配置应用启动时的事件处理（数据库初始化）
-    - 提供健康检查接口
-
-使用方法：
-    通过 uvicorn 启动:
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-    或通过 run.py 启动:
-        python run.py
-
-接口文档：
-    启动后访问 http://localhost:8000/docs 查看自动生成的Swagger文档
-"""
-
+import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import account, bill, category, tag, statistics, export
+from app.dependencies import require_auth
+from app.middleware import register_middlewares
+from app.routers import account, bill, category, tag, statistics, export, import_data, auth, llm
+
+LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+LOG_FILE = LOG_DIR / "app.log"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
+    ],
+)
+
+ENV = os.getenv("APP_ENV", "development")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    应用生命周期管理。
-
-    启动时执行数据库初始化（创建表、插入预设数据）。
-    """
     init_db()
     yield
 
 
 app = FastAPI(
     title="记账软件API",
-    description="个人记账软件后端API，支持记账、资金管理、统计分析等功能",
+    description="个人记账软件后端API",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs" if ENV == "development" else None,
+    redoc_url="/redoc" if ENV == "development" else None,
+    openapi_url="/openapi.json" if ENV == "development" else None,
 )
+
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-app.include_router(account.router)
-app.include_router(bill.router)
-app.include_router(category.router)
-app.include_router(tag.router)
-app.include_router(statistics.router)
-app.include_router(export.router)
+register_middlewares(app)
+
+app.include_router(auth.router)
+app.include_router(account.router, dependencies=[Depends(require_auth)])
+app.include_router(bill.router, dependencies=[Depends(require_auth)])
+app.include_router(category.router, dependencies=[Depends(require_auth)])
+app.include_router(tag.router, dependencies=[Depends(require_auth)])
+app.include_router(statistics.router, dependencies=[Depends(require_auth)])
+app.include_router(export.router, dependencies=[Depends(require_auth)])
+app.include_router(import_data.router, dependencies=[Depends(require_auth)])
+app.include_router(llm.router, dependencies=[Depends(require_auth)])
 
 
 @app.get("/health", tags=["系统"])
 def health_check():
-    """
-    健康检查接口。
-
-    Returns:
-        dict: {"status": "ok"}
-    """
     return {"status": "ok"}

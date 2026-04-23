@@ -111,3 +111,36 @@ def get_trend(
     """
     data = crud.get_trend(db, start_date=start_date, end_date=end_date, granularity=granularity)
     return schemas.ApiResponse(data=[schemas.TrendItemOut(**d) for d in data])
+
+
+@router.get("/balance-trend", response_model=schemas.ApiResponse[list[schemas.AccountBalanceTrendOut]],
+            summary="账户余额趋势")
+def get_balance_trend(
+    start_date: date = Query(..., description="开始日期"),
+    end_date: date = Query(..., description="结束日期"),
+    account_id: Optional[int] = Query(None, description="账户ID (不传则返回所有账户)"),
+    db: Session = Depends(get_db),
+):
+    """
+    获取账户余额趋势数据。
+
+    返回指定时间范围内每个账户每天的余额变化曲线。
+
+    Args:
+        start_date: 开始日期 (必填)
+        end_date: 结束日期 (必填)
+        account_id: 账户ID (可选，不传则返回所有账户)
+
+    Returns:
+        ApiResponse[List[AccountBalanceTrendOut]]: 账户余额趋势列表
+
+    示例:
+        GET /api/v1/statistics/balance-trend?start_date=2026-01-01&end_date=2026-04-30
+        GET /api/v1/statistics/balance-trend?start_date=2026-01-01&end_date=2026-04-30&account_id=1
+    """
+    data = crud.get_balance_trend(db, start_date=start_date, end_date=end_date, account_id=account_id)
+    return schemas.ApiResponse(data=[schemas.AccountBalanceTrendOut(
+        account_id=d["account_id"],
+        account_name=d["account_name"],
+        data=[schemas.BalanceTrendItemOut(**item) for item in d["data"]]
+    ) for d in data])
