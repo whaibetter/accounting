@@ -25,36 +25,50 @@ if ($confirm -eq "n" -or $confirm -eq "N") {
 }
 
 Write-Host ""
-Write-Host "[1/6] 同步后端代码到远程服务器..." -ForegroundColor Green
+Write-Host "[1/7] 构建前端生产版本..." -ForegroundColor Green
+Set-Location "$PSScriptRoot/web"
+if (-not (Test-Path "node_modules")) {
+    Write-Host "      安装前端依赖..." -ForegroundColor Gray
+    npm install
+}
+npm run build
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  ✗ 前端构建失败" -ForegroundColor Red
+    exit 1
+}
+Write-Host "  ✓ 前端构建完成" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "[2/7] 同步后端代码到远程服务器..." -ForegroundColor Green
 & scp @SSH_OPTS -r "$PSScriptRoot/server/app" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_BACKEND_PATH}/"
 & scp @SSH_OPTS "$PSScriptRoot/server/requirements.txt" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_BACKEND_PATH}/"
 & scp @SSH_OPTS "$PSScriptRoot/server/run.py" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_BACKEND_PATH}/"
 Write-Host "  ✓ 后端代码同步完成" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[2/6] 安装/更新 Python 依赖..." -ForegroundColor Green
+Write-Host "[3/7] 安装/更新 Python 依赖..." -ForegroundColor Green
 & ssh @SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "cd $REMOTE_BACKEND_PATH && pip3 install -r requirements.txt -q"
 Write-Host "  ✓ 依赖安装完成" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[3/6] 上传 systemd 服务配置..." -ForegroundColor Green
+Write-Host "[4/7] 上传 systemd 服务配置..." -ForegroundColor Green
 & scp @SSH_OPTS "$PSScriptRoot/accounting.service" "${REMOTE_USER}@${REMOTE_HOST}:/etc/systemd/system/accounting.service"
 & ssh @SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "sed -i 's|WorkingDirectory=.*|WorkingDirectory=$REMOTE_BACKEND_PATH|' /etc/systemd/system/accounting.service"
 Write-Host "  ✓ 服务配置已更新" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[4/6] 重启后端服务..." -ForegroundColor Green
+Write-Host "[5/7] 重启后端服务..." -ForegroundColor Green
 & ssh @SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "systemctl daemon-reload && systemctl restart accounting && sleep 2"
 Write-Host "  ✓ 后端服务已重启" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[5/6] 部署前端资源..." -ForegroundColor Green
+Write-Host "[6/7] 部署前端资源..." -ForegroundColor Green
 & ssh @SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "mkdir -p $REMOTE_FRONTEND_PATH"
 & scp @SSH_OPTS -r "$PSScriptRoot/web/dist/*" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_FRONTEND_PATH}/"
 Write-Host "  ✓ 前端资源已部署" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "[6/6] 配置 Nginx..." -ForegroundColor Green
+Write-Host "[7/7] 配置 Nginx..." -ForegroundColor Green
 $NGINX_CONF = @"
 server {
     listen 80;

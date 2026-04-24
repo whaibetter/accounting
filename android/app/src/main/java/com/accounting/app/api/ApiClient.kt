@@ -19,7 +19,6 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "ac
 
 object ApiClient {
 
-    private const val BASE_URL = "http://117.72.196.45:8000/api/v1/"
     private val TOKEN_KEY = stringPreferencesKey("access_token")
 
     @Volatile
@@ -69,7 +68,7 @@ object ApiClient {
 
     val api: ApiService by lazy {
         Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(ApiConfig.baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

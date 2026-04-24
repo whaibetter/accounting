@@ -1,4 +1,4 @@
-﻿<template>
+﻿﻿<template>
   <div class="page balance-trend">
     <div class="page-header">
       <h1>余额趋势</h1>
