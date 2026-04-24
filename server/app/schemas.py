@@ -400,9 +400,13 @@ class BalanceTrendItemOut(BaseModel):
     Attributes:
         date: 日期
         balance: 当日余额
+        income: 当日收入
+        expense: 当日支出
     """
     date: str
     balance: float
+    income: float = 0
+    expense: float = 0
 
 
 class AccountBalanceTrendOut(BaseModel):
@@ -412,8 +416,16 @@ class AccountBalanceTrendOut(BaseModel):
     Attributes:
         account_id: 账户ID
         account_name: 账户名称
+        account_type: 账户类型
+        account_type_name: 账户类型名称
+        current_balance: 当前余额
+        color: 图表颜色
         data: 余额趋势数据列表
     """
     account_id: int
     account_name: str
+    account_type: int
+    account_type_name: str
+    current_balance: float
+    color: str
     data: List[BalanceTrendItemOut]

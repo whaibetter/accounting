@@ -69,6 +69,14 @@ interface ApiService {
         @Query("granularity") granularity: String = "day"
     ): ApiResponse<List<TrendItem>>
 
+    @GET("statistics/balance-trend")
+    suspend fun getBalanceTrend(
+        @Query("start_date") startDate: String,
+        @Query("end_date") endDate: String,
+        @Query("account_id") accountId: Int? = null,
+        @Query("account_type") accountType: Int? = null
+    ): ApiResponse<List<AccountBalanceTrend>>
+
     @POST("import/accounts")
     suspend fun importAccounts(@Body accounts: Map<String, List<Map<String, @JvmSuppressWildcards Any>>>): ApiResponse<ImportResult>
 

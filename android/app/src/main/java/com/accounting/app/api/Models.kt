@@ -134,6 +134,23 @@ data class TrendItem(
     val expense: Double = 0.0
 )
 
+data class BalanceTrendItem(
+    val date: String,
+    val balance: Double = 0.0,
+    val income: Double = 0.0,
+    val expense: Double = 0.0
+)
+
+data class AccountBalanceTrend(
+    val account_id: Int,
+    val account_name: String,
+    val account_type: Int = 1,
+    val account_type_name: String = "",
+    val current_balance: Double = 0.0,
+    val color: String = "#6366f1",
+    val data: List<BalanceTrendItem> = emptyList()
+)
+
 data class ImportResult(
     val success: Int = 0,
     val skipped: Int? = null,

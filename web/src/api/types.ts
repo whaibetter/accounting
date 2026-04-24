@@ -74,11 +74,17 @@ export interface TrendItem {
 export interface BalanceTrendItem {
   date: string
   balance: number
+  income: number
+  expense: number
 }
 
 export interface AccountBalanceTrend {
   account_id: number
   account_name: string
+  account_type: number
+  account_type_name: string
+  current_balance: number
+  color: string
   data: BalanceTrendItem[]
 }
 

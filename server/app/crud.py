@@ -769,8 +769,19 @@ def get_trend(db: Session, start_date: date, end_date: date,
     return result
 
 
+ACCOUNT_TYPE_NAMES = {
+    1: "现金", 2: "银行卡", 3: "信用卡", 4: "支付宝", 5: "微信", 6: "其他"
+}
+
+ACCOUNT_COLORS = [
+    "#6366f1", "#34d399", "#f87171", "#facc15", "#fb923c", "#a78bfa",
+    "#f472b6", "#38bdf8", "#4ade80", "#e879f9", "#fbbf24", "#2dd4bf",
+]
+
+
 def get_balance_trend(db: Session, start_date: date, end_date: date,
-                      account_id: Optional[int] = None) -> List[dict]:
+                      account_id: Optional[int] = None,
+                      account_type: Optional[int] = None) -> List[dict]:
     """
     获取账户余额趋势数据。
 
@@ -782,60 +793,106 @@ def get_balance_trend(db: Session, start_date: date, end_date: date,
         start_date: 开始日期
         end_date: 结束日期
         account_id: 账户ID (None表示所有账户)
+        account_type: 账户类型筛选 (1-6)
 
     Returns:
-        List[dict]: 账户余额趋势列表，每项包含account_id, account_name, data
+        List[dict]: 账户余额趋势列表
     """
-    accounts = db.query(Account).all()
+    query = db.query(Account)
     if account_id:
-        accounts = [a for a in accounts if a.id == account_id]
+        query = query.filter(Account.id == account_id)
+    if account_type:
+        query = query.filter(Account.type == account_type)
+    accounts = query.order_by(Account.id).all()
 
     result = []
-    for account in accounts:
+    for idx, account in enumerate(accounts):
         current_balance = account.balance
 
         bills = db.query(Bill).filter(
             Bill.bill_date >= start_date,
             Bill.bill_date <= end_date,
             ((Bill.account_id == account.id) | (Bill.transfer_to_account_id == account.id))
-        ).order_by(Bill.bill_date.desc()).all()
+        ).order_by(Bill.bill_date.asc()).all()
 
-        date_balance = {}
-        current_date = end_date
-        temp_balance = current_balance
-
-        while current_date >= start_date:
-            date_str = current_date.strftime("%Y-%m-%d")
-            date_balance[date_str] = temp_balance
-            current_date = date.fromordinal(current_date.toordinal() - 1)
-
+        bills_by_date = {}
         for bill in bills:
-            bill_date_str = bill.bill_date.strftime("%Y-%m-%d")
-            if bill_date_str in date_balance:
-                if bill.account_id == account.id:
-                    if bill.type == 1:
-                        temp_balance += bill.amount
-                    elif bill.type == 2:
-                        temp_balance -= bill.amount
-                    elif bill.type == 3:
-                        temp_balance += bill.amount
-                elif bill.transfer_to_account_id == account.id:
-                    temp_balance -= bill.amount
+            d = bill.bill_date.strftime("%Y-%m-%d")
+            if d not in bills_by_date:
+                bills_by_date[d] = {"income": 0, "expense": 0}
+            if bill.account_id == account.id:
+                if bill.type == 1:
+                    bills_by_date[d]["expense"] += bill.amount
+                elif bill.type == 2:
+                    bills_by_date[d]["income"] += bill.amount
+                elif bill.type == 3:
+                    bills_by_date[d]["expense"] += bill.amount
+            elif bill.transfer_to_account_id == account.id:
+                bills_by_date[d]["income"] += bill.amount
 
-                for d in sorted(date_balance.keys()):
-                    if d <= bill_date_str:
-                        date_balance[d] = temp_balance
+        all_bills_before = db.query(Bill).filter(
+            Bill.bill_date < start_date,
+            ((Bill.account_id == account.id) | (Bill.transfer_to_account_id == account.id))
+        ).all()
 
+        delta_before = 0
+        for bill in all_bills_before:
+            if bill.account_id == account.id:
+                if bill.type == 1:
+                    delta_before -= bill.amount
+                elif bill.type == 2:
+                    delta_before += bill.amount
+                elif bill.type == 3:
+                    delta_before -= bill.amount
+            elif bill.transfer_to_account_id == account.id:
+                delta_before += bill.amount
+
+        balance_at_start = current_balance - delta_before
+
+        all_bills_in_range = db.query(Bill).filter(
+            Bill.bill_date >= start_date,
+            Bill.bill_date <= end_date,
+            ((Bill.account_id == account.id) | (Bill.transfer_to_account_id == account.id))
+        ).all()
+
+        delta_in_range = 0
+        for bill in all_bills_in_range:
+            if bill.account_id == account.id:
+                if bill.type == 1:
+                    delta_in_range -= bill.amount
+                elif bill.type == 2:
+                    delta_in_range += bill.amount
+                elif bill.type == 3:
+                    delta_in_range -= bill.amount
+            elif bill.transfer_to_account_id == account.id:
+                delta_in_range += bill.amount
+
+        balance_at_end = balance_at_start + delta_in_range
+
+        running_balance = balance_at_start
         data = []
-        for d in sorted(date_balance.keys()):
+        current_date = start_date
+
+        while current_date <= end_date:
+            date_str = current_date.strftime("%Y-%m-%d")
+            day_data = bills_by_date.get(date_str, {"income": 0, "expense": 0})
+            running_balance += day_data["income"] - day_data["expense"]
+
             data.append({
-                "date": d,
-                "balance": round(date_balance[d], 2)
+                "date": date_str,
+                "balance": round(running_balance, 2),
+                "income": round(day_data["income"], 2),
+                "expense": round(day_data["expense"], 2),
             })
+            current_date = date.fromordinal(current_date.toordinal() + 1)
 
         result.append({
             "account_id": account.id,
             "account_name": account.name,
+            "account_type": account.type,
+            "account_type_name": ACCOUNT_TYPE_NAMES.get(account.type, "其他"),
+            "current_balance": round(current_balance, 2),
+            "color": ACCOUNT_COLORS[idx % len(ACCOUNT_COLORS)],
             "data": data
         })
 

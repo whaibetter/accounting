@@ -119,28 +119,37 @@ def get_balance_trend(
     start_date: date = Query(..., description="开始日期"),
     end_date: date = Query(..., description="结束日期"),
     account_id: Optional[int] = Query(None, description="账户ID (不传则返回所有账户)"),
+    account_type: Optional[int] = Query(None, ge=1, le=6, description="账户类型: 1-现金 2-银行卡 3-信用卡 4-支付宝 5-微信 6-其他"),
     db: Session = Depends(get_db),
 ):
     """
     获取账户余额趋势数据。
 
     返回指定时间范围内每个账户每天的余额变化曲线。
+    支持按账户ID和账户类型筛选。
 
     Args:
         start_date: 开始日期 (必填)
         end_date: 结束日期 (必填)
-        account_id: 账户ID (可选，不传则返回所有账户)
+        account_id: 账户ID (可选)
+        account_type: 账户类型 (可选, 1-现金 2-银行卡 3-信用卡 4-支付宝 5-微信 6-其他)
 
     Returns:
         ApiResponse[List[AccountBalanceTrendOut]]: 账户余额趋势列表
 
     示例:
         GET /api/v1/statistics/balance-trend?start_date=2026-01-01&end_date=2026-04-30
+        GET /api/v1/statistics/balance-trend?start_date=2026-01-01&end_date=2026-04-30&account_type=2
         GET /api/v1/statistics/balance-trend?start_date=2026-01-01&end_date=2026-04-30&account_id=1
     """
-    data = crud.get_balance_trend(db, start_date=start_date, end_date=end_date, account_id=account_id)
+    data = crud.get_balance_trend(db, start_date=start_date, end_date=end_date,
+                                  account_id=account_id, account_type=account_type)
     return schemas.ApiResponse(data=[schemas.AccountBalanceTrendOut(
         account_id=d["account_id"],
         account_name=d["account_name"],
+        account_type=d["account_type"],
+        account_type_name=d["account_type_name"],
+        current_balance=d["current_balance"],
+        color=d["color"],
         data=[schemas.BalanceTrendItemOut(**item) for item in d["data"]]
     ) for d in data])
