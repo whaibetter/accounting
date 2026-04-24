@@ -139,3 +139,12 @@ data class ImportResult(
     val skipped: Int? = null,
     val errors: List<Any> = emptyList()
 )
+
+data class LlmConfigResponse(
+    val api_key: String? = null,
+    val api_base: String? = null,
+    val model: String? = null,
+    val provider: String? = null,
+    val temperature: Double? = null,
+    val max_tokens: Int? = null
+)

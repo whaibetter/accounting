@@ -74,4 +74,13 @@ interface ApiService {
 
     @POST("import/bills")
     suspend fun importBills(@Body bills: Map<String, List<Map<String, @JvmSuppressWildcards Any>>>): ApiResponse<ImportResult>
+
+    @POST("ai/accounting")
+    suspend fun aiAccounting(@Body request: Map<String, String>): ApiResponse<Any>
+
+    @GET("ai/config")
+    suspend fun getLlmConfig(): LlmConfigResponse
+
+    @PUT("ai/config")
+    suspend fun updateLlmConfig(@Body config: Map<String, @JvmSuppressWildcards Any?>): ApiResponse<Any>
 }

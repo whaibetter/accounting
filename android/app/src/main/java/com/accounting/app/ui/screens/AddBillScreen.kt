@@ -1,4 +1,4 @@
-package com.accounting.app.ui.screens
+﻿package com.accounting.app.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.accounting.app.api.BillCreate
-import com.accounting.app.ui.theme.*
+import com.accounting.app.ui.theme.AppColors
 import com.accounting.app.viewmodel.BillViewModel
 import com.accounting.app.viewmodel.DataViewModel
 import java.text.SimpleDateFormat
@@ -108,20 +108,20 @@ fun AddBillScreen(onBack: () -> Unit) {
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = when {
-                            billType == type && type == 1 -> ExpenseBgColor
-                            billType == type && type == 2 -> IncomeBgColor
-                            else -> CardBg
+                            billType == type && type == 1 -> AppColors.expenseBgColor
+                            billType == type && type == 2 -> AppColors.incomeBgColor
+                            else -> AppColors.cardBg
                         },
                         contentColor = when {
-                            billType == type && type == 1 -> ExpenseColor
-                            billType == type && type == 2 -> IncomeColor
+                            billType == type && type == 1 -> AppColors.expenseColor
+                            billType == type && type == 2 -> AppColors.incomeColor
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
                     ),
                     border = BorderStroke(1.dp, when {
-                        billType == type && type == 1 -> ExpenseColor
-                        billType == type && type == 2 -> IncomeColor
-                        else -> BorderColor
+                        billType == type && type == 1 -> AppColors.expenseColor
+                        billType == type && type == 2 -> AppColors.incomeColor
+                        else -> AppColors.borderColor
                     })
                 ) {
                     Text(label, fontWeight = FontWeight.SemiBold)
@@ -134,7 +134,7 @@ fun AddBillScreen(onBack: () -> Unit) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBg)
+            colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
         ) {
             Row(
                 modifier = Modifier
@@ -147,7 +147,7 @@ fun AddBillScreen(onBack: () -> Unit) {
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { amount = it },
-                    placeholder = { Text("0.00", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = TextMuted) },
+                    placeholder = { Text("0.00", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = AppColors.textMuted) },
                     modifier = Modifier.weight(1f),
                     textStyle = LocalTextStyle.current.copy(
                         fontSize = 36.sp,
@@ -181,10 +181,10 @@ fun AddBillScreen(onBack: () -> Unit) {
                     modifier = Modifier
                         .width(64.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) PrimaryBgColor else CardBg)
+                        .background(if (isSelected) AppColors.primaryBgColor else AppColors.cardBg)
                         .border(
                             1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.primary else BorderColor,
+                            if (isSelected) MaterialTheme.colorScheme.primary else AppColors.borderColor,
                             RoundedCornerShape(10.dp)
                         )
                         .clickable {
@@ -223,10 +223,10 @@ fun AddBillScreen(onBack: () -> Unit) {
                         onClick = { selectedCategoryId = sub.id },
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (isSelected) PrimaryBgColor else CardBg,
+                            containerColor = if (isSelected) AppColors.primaryBgColor else AppColors.cardBg,
                             contentColor = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else BorderColor),
+                        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else AppColors.borderColor),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(sub.name, fontSize = 12.sp)
@@ -249,10 +249,10 @@ fun AddBillScreen(onBack: () -> Unit) {
                     onClick = { selectedAccountId = acc.id },
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (isSelected) PrimaryBgColor else CardBg,
+                        containerColor = if (isSelected) AppColors.primaryBgColor else AppColors.cardBg,
                         contentColor = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                     ),
-                    border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else BorderColor),
+                    border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else AppColors.borderColor),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(acc.name, fontSize = 13.sp)
@@ -269,10 +269,10 @@ fun AddBillScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = InputBg,
+                containerColor = AppColors.inputBg,
                 contentColor = MaterialTheme.colorScheme.onBackground
             ),
-            border = BorderStroke(1.dp, BorderColor)
+            border = BorderStroke(1.dp, AppColors.borderColor)
         ) {
             Text(billDate)
         }
@@ -307,14 +307,14 @@ fun AddBillScreen(onBack: () -> Unit) {
         OutlinedTextField(
             value = remark,
             onValueChange = { remark = it },
-            placeholder = { Text("添加备注...", color = TextMuted) },
+            placeholder = { Text("添加备注...", color = AppColors.textMuted) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = BorderColor,
-                focusedContainerColor = InputBg,
-                unfocusedContainerColor = InputBg
+                unfocusedBorderColor = AppColors.borderColor,
+                focusedContainerColor = AppColors.inputBg,
+                unfocusedContainerColor = AppColors.inputBg
             )
         )
 
@@ -338,10 +338,10 @@ fun AddBillScreen(onBack: () -> Unit) {
                         },
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (isSelected) PrimaryBgColor else CardBg,
+                            containerColor = if (isSelected) AppColors.primaryBgColor else AppColors.cardBg,
                             contentColor = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else BorderColor),
+                        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else AppColors.borderColor),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Text(tag.name, fontSize = 13.sp)
@@ -397,10 +397,11 @@ fun AddBillScreen(onBack: () -> Unit) {
         }
         Snackbar(
             modifier = Modifier.padding(16.dp),
-            containerColor = ExpenseColor,
-            contentColor = Color.White
+            containerColor = AppColors.expenseColor,
+            contentColor = MaterialTheme.colorScheme.onPrimary
         ) {
             Text(showToast)
         }
     }
 }
+

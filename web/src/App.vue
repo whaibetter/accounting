@@ -14,14 +14,24 @@
       <span class="tab-icon" v-html="tab.icon"></span>
       <span class="tab-label">{{ tab.label }}</span>
     </router-link>
+    <router-link to="/settings" class="tab-item" :class="{ active: isActive('/settings') }">
+      <span class="tab-icon">⚙</span>
+      <span class="tab-label">设置</span>
+    </router-link>
   </nav>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useThemeStore } from '@/stores/theme'
 
 const route = useRoute()
+const themeStore = useThemeStore()
+
+onMounted(() => {
+  themeStore.initTheme()
+})
 
 const tabs = [
   { path: '/', label: '首页', icon: '🏠' },
@@ -31,7 +41,7 @@ const tabs = [
 ]
 
 const showTabBar = computed(() => {
-  return !['add', 'login'].includes(route.name as string)
+  return !['add', 'login', 'settings', 'llm-settings'].includes(route.name as string)
 })
 
 function isActive(path: string) {
@@ -78,7 +88,7 @@ function isActive(path: string) {
   width: 100%;
   max-width: 480px;
   display: flex;
-  background: rgba(15, 15, 19, 0.92);
+  background: var(--tab-bar-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);

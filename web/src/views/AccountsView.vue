@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page accounts">
     <div class="page-header">
       <h1>账户</h1>
@@ -104,8 +104,8 @@ onMounted(() => store.loadAll())
 .total-card {
   text-align: center;
   padding: 28px 20px;
-  background: linear-gradient(135deg, #1e1e30 0%, #1a1a28 100%);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: var(--overview-card-bg);
+  border: 1px solid var(--overview-card-border);
   margin-bottom: 20px;
 }
 .total-label { font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
@@ -142,3 +142,4 @@ onMounted(() => store.loadAll())
   background: var(--primary-bg); color: var(--primary-light); border: 1px solid var(--primary);
 }
 </style>
+

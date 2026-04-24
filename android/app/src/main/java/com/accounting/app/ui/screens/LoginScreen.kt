@@ -1,4 +1,4 @@
-package com.accounting.app.ui.screens
+﻿package com.accounting.app.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,7 +15,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.accounting.app.ui.theme.*
+import com.accounting.app.ui.theme.AppColors
 import com.accounting.app.viewmodel.AuthViewModel
 
 @Composable
@@ -75,10 +75,10 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryBgColor,
-                unfocusedBorderColor = BorderColor,
-                focusedContainerColor = InputBg,
-                unfocusedContainerColor = InputBg,
+                focusedBorderColor = AppColors.primaryBgColor,
+                unfocusedBorderColor = AppColors.borderColor,
+                focusedContainerColor = AppColors.inputBg,
+                unfocusedContainerColor = AppColors.inputBg,
                 cursorColor = MaterialTheme.colorScheme.primary
             ),
             trailingIcon = {
@@ -123,11 +123,11 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     .fillMaxWidth()
                     .padding(top = 16.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = CardDefaults.cardColors(containerColor = ExpenseBgColor)
+                colors = CardDefaults.cardColors(containerColor = AppColors.expenseBgColor)
             ) {
                 Text(
                     text = error,
-                    color = ExpenseColor,
+                    color = AppColors.expenseColor,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(12.dp)
                 )
@@ -139,21 +139,22 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 .fillMaxWidth()
                 .padding(top = 32.dp),
             shape = RoundedCornerShape(10.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBg)
+            colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     "登录后凭证有效期为 7 天",
                     fontSize = 12.sp,
-                    color = TextMuted,
+                    color = AppColors.textMuted,
                     lineHeight = 22.sp
                 )
                 Text(
                     "期间内无需重复输入密码",
                     fontSize = 12.sp,
-                    color = TextMuted
+                    color = AppColors.textMuted
                 )
             }
         }
     }
 }
+

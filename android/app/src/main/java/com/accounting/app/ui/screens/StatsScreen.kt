@@ -1,4 +1,4 @@
-package com.accounting.app.ui.screens
+﻿package com.accounting.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,12 +16,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.accounting.app.ui.theme.*
+import com.accounting.app.ui.theme.AppColors
 import com.accounting.app.viewmodel.StatsViewModel
 import java.util.*
 
 @Composable
-fun StatsScreen() {
+fun StatsScreen(
+    onNavigateToBalanceTrend: () -> Unit = {}
+) {
     val statsViewModel: StatsViewModel = viewModel()
     val overview by statsViewModel.overview.collectAsState()
     val categoryStats by statsViewModel.categoryStats.collectAsState()
@@ -53,12 +55,21 @@ fun StatsScreen() {
             .verticalScroll(rememberScrollState())
             .padding(top = 16.dp, bottom = 80.dp)
     ) {
-        Text(
-            "统计",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "统计",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            TextButton(onClick = onNavigateToBalanceTrend) {
+                Text("余额趋势 →", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+            }
+        }
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -75,7 +86,7 @@ fun StatsScreen() {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(CardBg)
+                    .background(AppColors.cardBg)
             ) {
                 Text("‹", fontSize = 20.sp, color = MaterialTheme.colorScheme.onBackground)
             }
@@ -95,7 +106,7 @@ fun StatsScreen() {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(CardBg)
+                    .background(AppColors.cardBg)
             ) {
                 Text("›", fontSize = 20.sp, color = MaterialTheme.colorScheme.onBackground)
             }
@@ -108,7 +119,7 @@ fun StatsScreen() {
                 Card(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardBg)
+                    colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("收入", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -117,14 +128,14 @@ fun StatsScreen() {
                             "¥${formatMoney(overview!!.total_income)}",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = IncomeColor
+                            color = AppColors.incomeColor
                         )
                     }
                 }
                 Card(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardBg)
+                    colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text("支出", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -133,7 +144,7 @@ fun StatsScreen() {
                             "¥${formatMoney(overview!!.total_expense)}",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = ExpenseColor
+                            color = AppColors.expenseColor
                         )
                     }
                 }
@@ -154,7 +165,7 @@ fun StatsScreen() {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBg)
+                colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
             ) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     categoryStats.forEach { stat ->
@@ -183,7 +194,7 @@ fun StatsScreen() {
                                     .fillMaxWidth()
                                     .height(6.dp)
                                     .clip(RoundedCornerShape(3.dp))
-                                    .background(InputBg)
+                                    .background(AppColors.inputBg)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -192,10 +203,10 @@ fun StatsScreen() {
                                         .clip(RoundedCornerShape(3.dp))
                                         .background(
                                             when {
-                                                stat.percentage > 40 -> Color(0xFFF87171)
-                                                stat.percentage > 25 -> Color(0xFFFB923C)
-                                                stat.percentage > 15 -> Color(0xFFFACC15)
-                                                else -> Color(0xFF6366F1)
+                                                stat.percentage > 40 -> AppColors.barColorHigh
+                                                stat.percentage > 25 -> AppColors.barColorMedium
+                                                stat.percentage > 15 -> AppColors.barColorLow
+                                                else -> AppColors.barColorDefault
                                             }
                                         )
                                 )
@@ -203,7 +214,7 @@ fun StatsScreen() {
                             Text(
                                 "${stat.percentage}%",
                                 fontSize = 11.sp,
-                                color = TextMuted,
+                                color = AppColors.textMuted,
                                 modifier = Modifier.align(Alignment.End)
                             )
                         }
@@ -226,7 +237,7 @@ fun StatsScreen() {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBg)
+                colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     val maxVal = trendData.maxOfOrNull { maxOf(it.income, it.expense) } ?: 1.0
@@ -242,7 +253,7 @@ fun StatsScreen() {
                             Text(
                                 period,
                                 fontSize = 11.sp,
-                                color = TextMuted,
+                                color = AppColors.textMuted,
                                 modifier = Modifier.width(40.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -253,7 +264,7 @@ fun StatsScreen() {
                                         .weight(item.income.toFloat() / maxVal.toFloat())
                                         .height(12.dp)
                                         .clip(RoundedCornerShape(3.dp))
-                                        .background(IncomeColor.copy(alpha = 0.7f))
+                                        .background(AppColors.incomeColor.copy(alpha = 0.7f))
                                 )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
@@ -263,7 +274,7 @@ fun StatsScreen() {
                                         .weight(item.expense.toFloat() / maxVal.toFloat())
                                         .height(12.dp)
                                         .clip(RoundedCornerShape(3.dp))
-                                        .background(ExpenseColor.copy(alpha = 0.7f))
+                                        .background(AppColors.expenseColor.copy(alpha = 0.7f))
                                 )
                             }
                         }
@@ -276,20 +287,20 @@ fun StatsScreen() {
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(IncomeColor)
+                                    .background(AppColors.incomeColor)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("收入", fontSize = 11.sp, color = TextMuted)
+                            Text("收入", fontSize = 11.sp, color = AppColors.textMuted)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(ExpenseColor)
+                                    .background(AppColors.expenseColor)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("支出", fontSize = 11.sp, color = TextMuted)
+                            Text("支出", fontSize = 11.sp, color = AppColors.textMuted)
                         }
                     }
                 }
@@ -297,3 +308,4 @@ fun StatsScreen() {
         }
     }
 }
+

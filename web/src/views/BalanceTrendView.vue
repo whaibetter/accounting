@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page balance-trend">
     <div class="page-header">
       <h1>余额趋势</h1>
@@ -129,9 +129,9 @@ const chartOption = computed(() => {
   return {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#1a1a24',
-      borderColor: '#2a2a3a',
-      textStyle: { color: '#e8e8ed', fontSize: 12 },
+      backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim() || '#1a1a24',
+      borderColor: getComputedStyle(document.documentElement).getPropertyValue('--chart-border').trim() || '#2a2a3a',
+      textStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() || '#e8e8ed', fontSize: 12 },
       formatter: (params: any) => {
         let html = `<div style="font-weight:600;margin-bottom:8px">${params[0].axisValue}</div>`
         params.forEach((p: any) => {
@@ -145,7 +145,7 @@ const chartOption = computed(() => {
     },
     legend: {
       data: balanceData.value.map(a => a.account_name),
-      textStyle: { color: '#8888a0', fontSize: 11 },
+      textStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-secondary').trim() || '#8888a0', fontSize: 11 },
       top: 0,
       right: 0,
     },
@@ -153,14 +153,14 @@ const chartOption = computed(() => {
     xAxis: {
       type: 'category',
       data: dates,
-      axisLine: { lineStyle: { color: '#2a2a3a' } },
-      axisLabel: { color: '#8888a0', fontSize: 10, interval: Math.floor(dates.length / 6) },
+      axisLine: { lineStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-axis').trim() || '#2a2a3a' } },
+      axisLabel: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-secondary').trim() || '#8888a0', fontSize: 10, interval: Math.floor(dates.length / 6) },
     },
     yAxis: {
       type: 'value',
-      splitLine: { lineStyle: { color: '#1e1e2e' } },
+      splitLine: { lineStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-split').trim() || '#1e1e2e' } },
       axisLabel: { 
-        color: '#8888a0', 
+        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-secondary').trim() || '#8888a0', 
         fontSize: 11,
         formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(0)
       },
@@ -316,3 +316,4 @@ onMounted(async () => {
   color: var(--expense);
 }
 </style>
+

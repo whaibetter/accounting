@@ -69,10 +69,11 @@ function formatMoney(n: number) {
 }
 
 function getBarColor(pct: number) {
-  if (pct > 40) return '#f87171'
-  if (pct > 25) return '#fb923c'
-  if (pct > 15) return '#facc15'
-  return '#6366f1'
+  const style = getComputedStyle(document.documentElement)
+  if (pct > 40) return style.getPropertyValue('--bar-high').trim() || '#f87171'
+  if (pct > 25) return style.getPropertyValue('--bar-medium').trim() || '#fb923c'
+  if (pct > 15) return style.getPropertyValue('--bar-low').trim() || '#facc15'
+  return style.getPropertyValue('--bar-default').trim() || '#6366f1'
 }
 
 function prevMonth() {
@@ -88,13 +89,13 @@ function nextMonth() {
 const trendOption = computed(() => ({
   tooltip: {
     trigger: 'axis',
-    backgroundColor: '#1a1a24',
-    borderColor: '#2a2a3a',
-    textStyle: { color: '#e8e8ed', fontSize: 12 },
+    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim() || '#1a1a24',
+    borderColor: getComputedStyle(document.documentElement).getPropertyValue('--chart-border').trim() || '#2a2a3a',
+    textStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() || '#e8e8ed', fontSize: 12 },
   },
   legend: {
     data: ['收入', '支出'],
-    textStyle: { color: '#8888a0', fontSize: 11 },
+    textStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-secondary').trim() || '#8888a0', fontSize: 11 },
     top: 0,
     right: 0,
   },
@@ -102,13 +103,13 @@ const trendOption = computed(() => ({
   xAxis: {
     type: 'category',
     data: trendData.value.map((t) => t.period.slice(5)),
-    axisLine: { lineStyle: { color: '#2a2a3a' } },
-    axisLabel: { color: '#8888a0', fontSize: 11 },
+    axisLine: { lineStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-axis').trim() || '#2a2a3a' } },
+    axisLabel: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-secondary').trim() || '#8888a0', fontSize: 11 },
   },
   yAxis: {
     type: 'value',
-    splitLine: { lineStyle: { color: '#1e1e2e' } },
-    axisLabel: { color: '#8888a0', fontSize: 11 },
+    splitLine: { lineStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-split').trim() || '#1e1e2e' } },
+    axisLabel: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text-secondary').trim() || '#8888a0', fontSize: 11 },
   },
   series: [
     {
@@ -197,3 +198,4 @@ onMounted(loadData)
 
 .trend-card { padding: 16px; }
 </style>
+

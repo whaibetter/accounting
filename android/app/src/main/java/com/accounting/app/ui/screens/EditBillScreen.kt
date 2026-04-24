@@ -1,4 +1,4 @@
-package com.accounting.app.ui.screens
+﻿package com.accounting.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.accounting.app.api.Bill
 import com.accounting.app.api.BillUpdate
-import com.accounting.app.ui.theme.*
+import com.accounting.app.ui.theme.AppColors
 import com.accounting.app.viewmodel.BillViewModel
 import com.accounting.app.viewmodel.DataViewModel
 
@@ -85,7 +85,7 @@ fun EditBillScreen(billId: Int, onBack: () -> Unit) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBg)
+            colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -93,7 +93,7 @@ fun EditBillScreen(billId: Int, onBack: () -> Unit) {
                         modifier = Modifier
                             .size(40.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(InputBg),
+                            .background(AppColors.inputBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(getCategoryIcon(currentBill.category_id), fontSize = 20.sp)
@@ -109,7 +109,7 @@ fun EditBillScreen(billId: Int, onBack: () -> Unit) {
                         Text(
                             currentBill.account_name,
                             fontSize = 12.sp,
-                            color = TextMuted
+                            color = AppColors.textMuted
                         )
                     }
                 }
@@ -127,9 +127,9 @@ fun EditBillScreen(billId: Int, onBack: () -> Unit) {
             shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = BorderColor,
-                focusedContainerColor = InputBg,
-                unfocusedContainerColor = InputBg
+                unfocusedBorderColor = AppColors.borderColor,
+                focusedContainerColor = AppColors.inputBg,
+                unfocusedContainerColor = AppColors.inputBg
             )
         )
 
@@ -144,9 +144,9 @@ fun EditBillScreen(billId: Int, onBack: () -> Unit) {
             shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = BorderColor,
-                focusedContainerColor = InputBg,
-                unfocusedContainerColor = InputBg
+                unfocusedBorderColor = AppColors.borderColor,
+                focusedContainerColor = AppColors.inputBg,
+                unfocusedContainerColor = AppColors.inputBg
             )
         )
 
@@ -165,8 +165,8 @@ fun EditBillScreen(billId: Int, onBack: () -> Unit) {
                     .height(52.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = ExpenseBgColor,
-                    contentColor = ExpenseColor
+                    containerColor = AppColors.expenseBgColor,
+                    contentColor = AppColors.expenseColor
                 )
             ) {
                 Text("删除", fontWeight = FontWeight.SemiBold)
@@ -198,3 +198,4 @@ fun EditBillScreen(billId: Int, onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(20.dp))
     }
 }
+

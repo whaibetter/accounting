@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page home">
     <div class="page-header">
       <h1>记账</h1>
@@ -114,8 +114,8 @@ onMounted(async () => {
 
 <style scoped>
 .overview-card {
-  background: linear-gradient(135deg, #1e1e30 0%, #1a1a28 100%);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: var(--overview-card-bg);
+  border: 1px solid var(--overview-card-border);
   overflow: hidden;
   position: relative;
 }
@@ -126,7 +126,7 @@ onMounted(async () => {
   right: -30%;
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--primary-bg) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -226,19 +226,21 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
   z-index: 50;
   transition: all var(--transition);
 }
 .fab:active { transform: scale(0.9); }
 .fab-ai {
   right: calc(50% - 220px + 70px);
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   font-size: 22px;
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
 }
 @media (max-width: 480px) {
   .fab { right: 20px; }
   .fab-ai { right: 90px; }
 }
 </style>
+
+

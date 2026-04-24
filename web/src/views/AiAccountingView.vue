@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page ai-accounting">
     <div class="page-header">
       <button class="back-btn" @click="$router.back()">‹</button>
@@ -251,8 +251,8 @@ onMounted(async () => {
 .parse-btn:disabled { opacity: 0.4; }
 
 .loading-spinner {
-  width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite;
+  width: 18px; height: 18px; border: 2.5px solid var(--spinner-border);
+  border-top-color: var(--spinner-top); border-radius: 50%; animation: spin 0.6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -309,3 +309,4 @@ onMounted(async () => {
 .result-toast.success { background: var(--income); color: #000; }
 .result-toast.error { background: var(--expense); color: #fff; }
 </style>
+

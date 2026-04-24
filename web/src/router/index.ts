@@ -55,6 +55,11 @@ const router = createRouter({
       name: 'llm-settings',
       component: () => import('@/views/LlmSettingsView.vue'),
     },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/views/SettingsView.vue'),
+    },
   ],
 })
 

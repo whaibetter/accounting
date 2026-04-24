@@ -14,6 +14,7 @@ import com.accounting.app.api.ApiClient
 import com.accounting.app.ui.navigation.AppNavigation
 import com.accounting.app.ui.theme.AccountingTheme
 import com.accounting.app.viewmodel.AuthViewModel
+import com.accounting.app.viewmodel.ThemeViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,11 +40,17 @@ class MainActivity : ComponentActivity() {
                 if (isReady) {
                     val authViewModel: AuthViewModel = viewModel()
                     val isAuthenticated by authViewModel.isAuthenticated.collectAsState()
+                    val themeViewModel: ThemeViewModel = viewModel()
+                    val themeMode by themeViewModel.themeMode.collectAsState()
                     
-                    AppNavigation(
-                        isAuthenticated = isAuthenticated,
-                        onLogout = { authViewModel.logout() }
-                    )
+                    AccountingTheme(themeMode = themeMode) {
+                        AppNavigation(
+                            isAuthenticated = isAuthenticated,
+                            onLogout = { authViewModel.logout() },
+                            onThemeChange = { themeViewModel.setThemeMode(it) },
+                            currentThemeMode = themeMode
+                        )
+                    }
                 }
             }
         }

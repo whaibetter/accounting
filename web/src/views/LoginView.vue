@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="login-page">
     <div class="login-card">
       <div class="login-icon">🔐</div>
@@ -160,8 +160,8 @@ async function handleLogin() {
 .spinner {
   width: 22px;
   height: 22px;
-  border: 2.5px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border: 2.5px solid var(--spinner-border);
+  border-top-color: var(--spinner-top);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -194,3 +194,4 @@ async function handleLogin() {
   to { transform: rotate(360deg); }
 }
 </style>
+

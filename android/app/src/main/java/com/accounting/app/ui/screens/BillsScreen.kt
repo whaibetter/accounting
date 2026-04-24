@@ -1,4 +1,4 @@
-package com.accounting.app.ui.screens
+﻿package com.accounting.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.accounting.app.api.Bill
 import com.accounting.app.api.BillUpdate
-import com.accounting.app.ui.theme.*
+import com.accounting.app.ui.theme.AppColors
 import com.accounting.app.viewmodel.BillViewModel
 import com.accounting.app.viewmodel.DataViewModel
 import java.util.*
@@ -90,11 +90,11 @@ fun BillsScreen(
                         label = { Text(label, fontSize = 13.sp) },
                         shape = RoundedCornerShape(20.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = PrimaryBgColor,
+                            selectedContainerColor = AppColors.primaryBgColor,
                             selectedLabelColor = MaterialTheme.colorScheme.secondary
                         ),
                         border = FilterChipDefaults.filterChipBorder(
-                            borderColor = BorderColor,
+                            borderColor = AppColors.borderColor,
                             selectedBorderColor = MaterialTheme.colorScheme.primary
                         )
                     )
@@ -117,7 +117,7 @@ fun BillsScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(CardBg)
+                    .background(AppColors.cardBg)
             ) {
                 Text("‹", fontSize = 20.sp, color = MaterialTheme.colorScheme.onBackground)
             }
@@ -137,7 +137,7 @@ fun BillsScreen(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(CardBg)
+                    .background(AppColors.cardBg)
             ) {
                 Text("›", fontSize = 20.sp, color = MaterialTheme.colorScheme.onBackground)
             }
@@ -154,7 +154,7 @@ fun BillsScreen(
             ) {
                 Text("📭", fontSize = 48.sp)
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("本月暂无账单", fontSize = 14.sp, color = TextMuted)
+                Text("本月暂无账单", fontSize = 14.sp, color = AppColors.textMuted)
             }
         } else {
             LazyColumn(
@@ -182,7 +182,7 @@ fun BillsScreen(
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
             title = { Text("编辑账单") },
-            containerColor = CardBg,
+            containerColor = AppColors.cardBg,
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     OutlinedTextField(
@@ -193,9 +193,9 @@ fun BillsScreen(
                         shape = RoundedCornerShape(10.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = BorderColor,
-                            focusedContainerColor = InputBg,
-                            unfocusedContainerColor = InputBg
+                            unfocusedBorderColor = AppColors.borderColor,
+                            focusedContainerColor = AppColors.inputBg,
+                            unfocusedContainerColor = AppColors.inputBg
                         )
                     )
                     OutlinedTextField(
@@ -206,9 +206,9 @@ fun BillsScreen(
                         shape = RoundedCornerShape(10.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = BorderColor,
-                            focusedContainerColor = InputBg,
-                            unfocusedContainerColor = InputBg
+                            unfocusedBorderColor = AppColors.borderColor,
+                            focusedContainerColor = AppColors.inputBg,
+                            unfocusedContainerColor = AppColors.inputBg
                         )
                     )
                 }
@@ -222,7 +222,7 @@ fun BillsScreen(
                                 dataViewModel.refreshAccounts()
                             }
                         },
-                        colors = ButtonDefaults.textButtonColors(contentColor = ExpenseColor)
+                        colors = ButtonDefaults.textButtonColors(contentColor = AppColors.expenseColor)
                     ) {
                         Text("删除", fontWeight = FontWeight.SemiBold)
                     }
@@ -248,3 +248,4 @@ fun BillsScreen(
         )
     }
 }
+

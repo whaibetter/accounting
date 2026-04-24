@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.accounting.app.api.*
-import com.accounting.app.ui.theme.*
+import com.accounting.app.ui.theme.AppColors
 import com.accounting.app.viewmodel.BillViewModel
 import com.accounting.app.viewmodel.DataViewModel
 import com.accounting.app.viewmodel.StatsViewModel
@@ -53,6 +53,8 @@ fun getMonthRange(): Pair<String, String> {
 fun HomeScreen(
     onNavigateToBills: () -> Unit,
     onNavigateToAdd: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToAi: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     val dataViewModel: DataViewModel = viewModel()
@@ -99,6 +101,9 @@ fun HomeScreen(
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    TextButton(onClick = onNavigateToSettings) {
+                        Text("⚙", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 Spacer(modifier = Modifier.height(20.dp))
             }
@@ -108,7 +113,7 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1E1E30)
+                        containerColor = AppColors.overviewCardBg
                     )
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -122,7 +127,7 @@ fun HomeScreen(
                             "¥${formatMoney(overview?.balance ?: 0.0)}",
                             fontSize = 36.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if ((overview?.balance ?: 0.0) >= 0) IncomeColor else ExpenseColor,
+                            color = if ((overview?.balance ?: 0.0) >= 0) AppColors.incomeColor else AppColors.expenseColor,
                             letterSpacing = (-1).sp
                         )
                         Spacer(modifier = Modifier.height(20.dp))
@@ -132,7 +137,7 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(IncomeColor)
+                                        .background(AppColors.incomeColor)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("收入", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -141,7 +146,7 @@ fun HomeScreen(
                                     "¥${formatMoney(overview?.total_income ?: 0.0)}",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = IncomeColor
+                                    color = AppColors.incomeColor
                                 )
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -149,7 +154,7 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(ExpenseColor)
+                                        .background(AppColors.expenseColor)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("支出", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -158,7 +163,7 @@ fun HomeScreen(
                                     "¥${formatMoney(overview?.total_expense ?: 0.0)}",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = ExpenseColor
+                                    color = AppColors.expenseColor
                                 )
                             }
                         }
@@ -190,7 +195,7 @@ fun HomeScreen(
                         Text(
                             "暂无账单，点击下方记账开始",
                             fontSize = 14.sp,
-                            color = TextMuted
+                            color = AppColors.textMuted
                         )
                     }
                 }
@@ -213,7 +218,18 @@ fun HomeScreen(
             containerColor = MaterialTheme.colorScheme.primary,
             shape = CircleShape
         ) {
-            Text("+", fontSize = 28.sp, color = Color.White)
+            Text("+", fontSize = 28.sp, color = MaterialTheme.colorScheme.onPrimary)
+        }
+
+        SmallFloatingActionButton(
+            onClick = onNavigateToAi,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 160.dp),
+            containerColor = MaterialTheme.colorScheme.secondary,
+            shape = CircleShape
+        ) {
+            Text("🤖", fontSize = 16.sp)
         }
     }
 }
@@ -225,7 +241,7 @@ fun BillItem(bill: Bill, onClick: () -> Unit = {}) {
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg)
+        colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
     ) {
         Row(
             modifier = Modifier
@@ -237,7 +253,7 @@ fun BillItem(bill: Bill, onClick: () -> Unit = {}) {
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(InputBg),
+                    .background(AppColors.inputBg),
                 contentAlignment = Alignment.Center
             ) {
                 Text(getCategoryIcon(bill.category_id), fontSize = 20.sp)
@@ -253,7 +269,7 @@ fun BillItem(bill: Bill, onClick: () -> Unit = {}) {
                 Text(
                     "${bill.account_name}${if (bill.remark.isNotEmpty()) " · ${bill.remark}" else ""}",
                     fontSize = 12.sp,
-                    color = TextMuted,
+                    color = AppColors.textMuted,
                     maxLines = 1
                 )
             }
@@ -261,7 +277,7 @@ fun BillItem(bill: Bill, onClick: () -> Unit = {}) {
                 "${if (bill.type == 2) "+" else "-"}¥${formatMoney(bill.amount)}",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (bill.type == 2) IncomeColor else ExpenseColor
+                color = if (bill.type == 2) AppColors.incomeColor else AppColors.expenseColor
             )
         }
     }

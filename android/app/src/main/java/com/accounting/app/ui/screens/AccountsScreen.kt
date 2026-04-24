@@ -1,4 +1,4 @@
-package com.accounting.app.ui.screens
+﻿package com.accounting.app.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.accounting.app.api.Account
-import com.accounting.app.ui.theme.*
+import com.accounting.app.ui.theme.AppColors
 import com.accounting.app.viewmodel.AccountViewModel
 
 val typeLabels = mapOf(1 to "现金", 2 to "银行卡", 3 to "信用卡", 4 to "支付宝", 5 to "微信", 6 to "其他")
@@ -28,7 +28,9 @@ val typeIcons = mapOf(1 to "💵", 2 to "🏦", 3 to "💳", 4 to "🔵", 5 to "
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun AccountsScreen() {
+fun AccountsScreen(
+    onNavigateToSettings: () -> Unit = {}
+) {
     val accountViewModel: AccountViewModel = viewModel()
     val accounts by accountViewModel.accounts.collectAsState()
 
@@ -59,7 +61,7 @@ fun AccountsScreen() {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E30))
+            colors = CardDefaults.cardColors(containerColor = AppColors.overviewCardBg)
         ) {
             Column(
                 modifier = Modifier
@@ -73,7 +75,7 @@ fun AccountsScreen() {
                     "¥${formatMoney(totalBalance)}",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (totalBalance >= 0) IncomeColor else ExpenseColor,
+                    color = if (totalBalance >= 0) AppColors.incomeColor else AppColors.expenseColor,
                     letterSpacing = (-1).sp
                 )
             }
@@ -87,7 +89,7 @@ fun AccountsScreen() {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = CardBg)
+                        colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
                     ) {
                         Row(
                             modifier = Modifier
@@ -102,7 +104,7 @@ fun AccountsScreen() {
                                     modifier = Modifier
                                         .size(44.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(InputBg),
+                                        .background(AppColors.inputBg),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(typeIcons[acc.type] ?: "💳", fontSize = 22.sp)
@@ -118,7 +120,7 @@ fun AccountsScreen() {
                                     Text(
                                         typeLabels[acc.type] ?: "其他",
                                         fontSize = 12.sp,
-                                        color = TextMuted
+                                        color = AppColors.textMuted
                                     )
                                 }
                             }
@@ -126,7 +128,7 @@ fun AccountsScreen() {
                                 "¥${formatMoney(acc.balance)}",
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (acc.balance >= 0) IncomeColor else ExpenseColor
+                                color = if (acc.balance >= 0) AppColors.incomeColor else AppColors.expenseColor
                             )
                         }
                     }
@@ -147,21 +149,21 @@ fun AccountsScreen() {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CardBg)
+            colors = CardDefaults.cardColors(containerColor = AppColors.cardBg)
         ) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("账户名称", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(
                     value = newName,
                     onValueChange = { newName = it },
-                    placeholder = { Text("如：招商银行储蓄卡", color = TextMuted) },
+                    placeholder = { Text("如：招商银行储蓄卡", color = AppColors.textMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = BorderColor,
-                        focusedContainerColor = InputBg,
-                        unfocusedContainerColor = InputBg
+                        unfocusedBorderColor = AppColors.borderColor,
+                        focusedContainerColor = AppColors.inputBg,
+                        unfocusedContainerColor = AppColors.inputBg
                     )
                 )
 
@@ -176,10 +178,10 @@ fun AccountsScreen() {
                             onClick = { newType = key },
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isSelected) PrimaryBgColor else InputBg,
+                                containerColor = if (isSelected) AppColors.primaryBgColor else AppColors.inputBg,
                                 contentColor = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                             ),
-                            border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else BorderColor),
+                            border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else AppColors.borderColor),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
                         ) {
                             Text("${typeIcons[key]} $label", fontSize = 13.sp)
@@ -191,15 +193,15 @@ fun AccountsScreen() {
                 OutlinedTextField(
                     value = newBalance,
                     onValueChange = { newBalance = it },
-                    placeholder = { Text("0.00", color = TextMuted) },
+                    placeholder = { Text("0.00", color = AppColors.textMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = BorderColor,
-                        focusedContainerColor = InputBg,
-                        unfocusedContainerColor = InputBg
+                        unfocusedBorderColor = AppColors.borderColor,
+                        focusedContainerColor = AppColors.inputBg,
+                        unfocusedContainerColor = AppColors.inputBg
                     )
                 )
 
@@ -234,14 +236,14 @@ fun AccountsScreen() {
             onDismissRequest = { showDeleteDialog = null },
             title = { Text("删除账户") },
             text = { Text("确定要删除「${account.name}」吗？") },
-            containerColor = CardBg,
+            containerColor = AppColors.cardBg,
             confirmButton = {
                 TextButton(
                     onClick = {
                         accountViewModel.deleteAccount(account.id)
                         showDeleteDialog = null
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = ExpenseColor)
+                    colors = ButtonDefaults.textButtonColors(contentColor = AppColors.expenseColor)
                 ) {
                     Text("删除")
                 }
@@ -254,3 +256,4 @@ fun AccountsScreen() {
         )
     }
 }
+

@@ -10,9 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -21,6 +19,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.accounting.app.ui.screens.*
+import com.accounting.app.ui.theme.AppColors
+import com.accounting.app.viewmodel.ThemeMode
 
 sealed class Screen(val route: String) {
     data object Login : Screen("login")
@@ -32,6 +32,9 @@ sealed class Screen(val route: String) {
     }
     data object Stats : Screen("stats")
     data object Accounts : Screen("accounts")
+    data object Settings : Screen("settings")
+    data object AiAccounting : Screen("ai_accounting")
+    data object BalanceTrend : Screen("balance_trend")
 }
 
 data class BottomNavItem(
@@ -41,7 +44,12 @@ data class BottomNavItem(
 )
 
 @Composable
-fun AppNavigation(isAuthenticated: Boolean, onLogout: () -> Unit) {
+fun AppNavigation(
+    isAuthenticated: Boolean,
+    onLogout: () -> Unit,
+    onThemeChange: (ThemeMode) -> Unit,
+    currentThemeMode: ThemeMode
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -64,8 +72,8 @@ fun AppNavigation(isAuthenticated: Boolean, onLogout: () -> Unit) {
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
-                    containerColor = Color(0xFF0F0F13),
-                    contentColor = Color(0xFF818CF8)
+                    containerColor = AppColors.navBarBg,
+                    contentColor = AppColors.navBarActive
                 ) {
                     bottomItems.forEach { item ->
                         val isSelected = currentRoute == item.screen.route
@@ -74,13 +82,13 @@ fun AppNavigation(isAuthenticated: Boolean, onLogout: () -> Unit) {
                                 Icon(
                                     painter = painterResource(id = item.icon),
                                     contentDescription = item.label,
-                                    tint = if (isSelected) Color(0xFF818CF8) else Color(0xFF55556A)
+                                    tint = if (isSelected) AppColors.navBarActive else AppColors.navBarInactive
                                 )
                             },
                             label = {
                                 Text(
                                     item.label,
-                                    color = if (isSelected) Color(0xFF818CF8) else Color(0xFF55556A)
+                                    color = if (isSelected) AppColors.navBarActive else AppColors.navBarInactive
                                 )
                             },
                             selected = isSelected,
@@ -94,7 +102,7 @@ fun AppNavigation(isAuthenticated: Boolean, onLogout: () -> Unit) {
                                 }
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Color.Transparent
+                                indicatorColor = androidx.compose.ui.graphics.Color.Transparent
                             )
                         )
                     }
@@ -120,6 +128,8 @@ fun AppNavigation(isAuthenticated: Boolean, onLogout: () -> Unit) {
                 HomeScreen(
                     onNavigateToBills = { navController.navigate(Screen.Bills.route) },
                     onNavigateToAdd = { navController.navigate(Screen.AddBill.route) },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToAi = { navController.navigate(Screen.AiAccounting.route) },
                     onLogout = onLogout
                 )
             }
@@ -140,10 +150,27 @@ fun AppNavigation(isAuthenticated: Boolean, onLogout: () -> Unit) {
                 EditBillScreen(billId = billId, onBack = { navController.popBackStack() })
             }
             composable(Screen.Stats.route) {
-                StatsScreen()
+                StatsScreen(
+                    onNavigateToBalanceTrend = { navController.navigate(Screen.BalanceTrend.route) }
+                )
             }
             composable(Screen.Accounts.route) {
-                AccountsScreen()
+                AccountsScreen(
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                )
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    currentThemeMode = currentThemeMode,
+                    onThemeChange = onThemeChange,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.AiAccounting.route) {
+                AiAccountingScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.BalanceTrend.route) {
+                BalanceTrendScreen(onBack = { navController.popBackStack() })
             }
         }
     }

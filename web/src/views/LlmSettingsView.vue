@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page llm-settings">
     <div class="page-header">
       <button class="back-btn" @click="$router.back()">‹</button>
@@ -343,8 +343,8 @@ onMounted(loadConfig)
 .btn-primary:disabled { opacity: 0.4; display: flex; align-items: center; justify-content: center; gap: 8px; }
 
 .loading-spinner {
-  width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite;
+  width: 18px; height: 18px; border: 2.5px solid var(--spinner-border);
+  border-top-color: var(--spinner-top); border-radius: 50%; animation: spin 0.6s linear infinite;
 }
 .loading-spinner.small {
   width: 14px; height: 14px; border-color: rgba(255,255,255,0.2);
@@ -365,3 +365,4 @@ onMounted(loadConfig)
 .result-toast.success { background: var(--income); color: #000; }
 .result-toast.error { background: var(--expense); color: #fff; }
 </style>
+
