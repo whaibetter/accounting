@@ -1,76 +1,57 @@
-﻿<template>
+<template>
   <div class="login-page">
-    <div class="login-card">
-      <div class="login-icon">🔐</div>
-      <h1 class="login-title">记账助手</h1>
-      <p class="login-desc">请输入访问密码以登录系统</p>
-
-      <form @submit.prevent="handleLogin" class="login-form">
+    <div class="splash-content">
+      <div class="splash-logo">👛</div>
+      <div class="splash-title">轻松记账</div>
+      <div class="splash-subtitle">简单 · 纯粹 · 掌握生活</div>
+      <div class="login-form">
         <div class="input-group">
           <input
             v-model="password"
-            :type="showPassword ? 'text' : 'password'"
+            type="password"
             placeholder="请输入访问密码"
-            autocomplete="current-password"
             class="login-input"
-            ref="passwordInput"
+            @keyup.enter="handleLogin"
           />
-          <button type="button" class="toggle-pwd" @click="showPassword = !showPassword">
-            {{ showPassword ? '🙈' : '👁️' }}
-          </button>
         </div>
-
-        <button type="submit" class="btn-primary login-btn" :disabled="loading || !password">
-          <span v-if="loading" class="spinner"></span>
+        <button class="btn-primary login-btn" @click="handleLogin" :disabled="loading">
+          <span v-if="loading" class="loading-spinner"></span>
           <span v-else>登 录</span>
         </button>
-      </form>
-
-      <p class="login-hint" v-if="errorMsg">
-        <span class="error-text">{{ errorMsg }}</span>
-      </p>
-
-      <div class="login-info">
-        <p>登录后凭证有效期为 7 天</p>
-        <p>期间内无需重复输入密码</p>
+        <div v-if="error" class="error-msg">{{ error }}</div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
+<script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { authApi } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
-const auth = useAuthStore()
-const password = ref('')
-const showPassword = ref(false)
-const loading = ref(false)
-const errorMsg = ref('')
-const passwordInput = ref<HTMLInputElement | null>(null)
+const authStore = useAuthStore()
 
-onMounted(() => {
-  passwordInput.value?.focus()
-})
+const password = ref('')
+const loading = ref(false)
+const error = ref('')
 
 async function handleLogin() {
-  if (!password.value) return
+  if (!password.value) {
+    error.value = '请输入密码'
+    return
+  }
   loading.value = true
-  errorMsg.value = ''
+  error.value = ''
   try {
-    const res = await authApi.login(password.value)
-    const token = res.data?.access_token
-    if (token) {
-      auth.setToken(token)
-      router.replace('/')
+    const success = await authStore.login(password.value)
+    if (success) {
+      router.push('/')
     } else {
-      errorMsg.value = '登录返回数据异常'
+      error.value = '密码错误'
     }
-  } catch (e: any) {
-    errorMsg.value = e.message || '登录失败，请重试'
+  } catch (e) {
+    error.value = e.response?.data?.detail || '登录失败'
   } finally {
     loading.value = false
   }
@@ -83,115 +64,85 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--bg-primary);
   padding: 20px;
 }
 
-.login-card {
+.splash-content {
+  text-align: center;
   width: 100%;
   max-width: 360px;
-  text-align: center;
-  animation: fadeUp 0.5s ease;
 }
 
-.login-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.login-title {
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  margin-bottom: 8px;
-}
-
-.login-desc {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-bottom: 32px;
-  line-height: 1.5;
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.input-group {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.login-input {
-  padding-right: 48px;
-}
-
-.toggle-pwd {
-  position: absolute;
-  right: 12px;
-  background: none;
-  font-size: 18px;
-  padding: 4px;
-  line-height: 1;
-  opacity: 0.6;
-}
-
-.toggle-pwd:active {
-  opacity: 1;
-}
-
-.login-btn {
-  position: relative;
+.splash-logo {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(145deg, #f0d9b8, #e8c99a);
+  border-radius: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 52px;
-  font-size: 16px;
+  font-size: 52px;
+  box-shadow: 0 12px 40px rgba(200, 170, 120, 0.3);
+  margin: 0 auto 28px;
+}
+
+.splash-title {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--text-primary);
   letter-spacing: 4px;
+  margin-bottom: 10px;
 }
 
-.login-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.spinner {
-  width: 22px;
-  height: 22px;
-  border: 2.5px solid var(--spinner-border);
-  border-top-color: var(--spinner-top);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-.error-text {
-  color: var(--expense);
-  font-size: 13px;
-}
-
-.login-hint {
-  margin-top: 4px;
-  min-height: 20px;
-}
-
-.login-info {
-  margin-top: 32px;
-  padding: 16px;
-  background: var(--bg-card);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-}
-
-.login-info p {
-  font-size: 12px;
+.splash-subtitle {
+  font-size: 15px;
   color: var(--text-muted);
-  line-height: 1.8;
+  letter-spacing: 6px;
+  font-weight: 400;
+  margin-bottom: 48px;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.login-form {
+  width: 100%;
+}
+
+.input-group {
+  margin-bottom: 16px;
+}
+
+.login-input {
+  width: 100%;
+  padding: 14px 20px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  font-size: 16px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+
+.login-input:focus {
+  border-color: var(--accent);
+}
+
+.login-input::placeholder {
+  color: var(--text-light);
+}
+
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+}
+
+.error-msg {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 12px;
 }
 </style>
-

@@ -1,30 +1,23 @@
 {
-  "name": "web",
+  "name": "accounting-web",
+  "private": true,
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:remote": "vite --mode remote",
-    "build": "vue-tsc -b && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "dependencies": {
-    "axios": "^1.15.1",
-    "echarts": "^6.0.0",
-    "pinia": "^2.3.1",
-    "vue": "^3.5.32",
-    "vue-echarts": "^8.0.1",
-    "vue-router": "^4.6.4"
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "pinia": "^2.3.0",
+    "axios": "^1.7.9",
+    "chart.js": "^4.4.7",
+    "dayjs": "^1.11.13"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.6",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.9",
-    "vue-tsc": "^3.2.7"
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.0"
   }
 }

@@ -1,240 +1,418 @@
 <template>
-  <div class="page bills">
+  <div class="page bills-page">
     <div class="page-header">
-      <h1>账单</h1>
-      <div class="filter-tabs">
-        <button
-          v-for="f in filters"
-          :key="f.value"
-          class="filter-btn"
-          :class="{ active: currentFilter === f.value }"
-          @click="currentFilter = f.value"
-        >{{ f.label }}</button>
+      <span class="page-title">账单</span>
+      <div class="month-picker" @click="showMonthPicker = true">
+        {{ currentMonthLabel }} ▾
       </div>
     </div>
 
-    <div class="month-nav">
-      <button class="nav-btn" @click="prevMonth">‹</button>
-      <span class="month-text">{{ monthStr }}</span>
-      <button class="nav-btn" @click="nextMonth">›</button>
+    <div class="overview-cards">
+      <div class="ov-card">
+        <div class="ov-label">支出</div>
+        <div class="ov-val" style="color: var(--accent)">¥ {{ formatMoney(monthExpense) }}</div>
+      </div>
+      <div class="ov-card">
+        <div class="ov-label">收入</div>
+        <div class="ov-val" style="color: var(--success)">¥ {{ formatMoney(monthIncome) }}</div>
+      </div>
     </div>
 
-    <div class="bill-list" v-if="bills.length">
-      <div
-        class="bill-item card"
-        v-for="bill in bills"
-        :key="bill.id"
-        @click="editBill(bill)"
-      >
-        <div class="bill-left">
-          <span class="bill-icon">{{ getCategoryIcon(bill.category_id) }}</span>
-          <div class="bill-info">
-            <span class="bill-category">{{ bill.category_name }}</span>
-            <span class="bill-meta">
-              {{ bill.bill_date.slice(5) }}
-              {{ bill.account_name }}
-              <template v-if="bill.remark"> · {{ bill.remark }}</template>
-            </span>
+    <div v-if="loading" class="loading-center">
+      <span class="loading-spinner"></span>
+    </div>
+
+    <div v-else-if="groupedBills.length === 0" class="empty-state">
+      <div class="icon">📋</div>
+      <div class="text">暂无账单记录</div>
+    </div>
+
+    <div v-else>
+      <div v-for="group in groupedBills" :key="group.date" class="bill-group">
+        <div class="group-date">{{ group.label }}</div>
+        <div v-for="bill in group.bills" :key="bill.id" class="bill-item" @click="editBill(bill)">
+          <div class="bii-icon" :style="{ background: getCatBgColor(bill.category_icon) }">
+            {{ bill.category_icon || '📝' }}
           </div>
-        </div>
-        <div class="bill-right">
-          <span class="bill-amount" :class="bill.type === 2 ? 'income-text' : 'expense-text'">
-            {{ bill.type === 2 ? '+' : '-' }}¥{{ formatMoney(bill.amount) }}
-          </span>
-          <div class="bill-tags" v-if="bill.tags?.length">
-            <span class="mini-tag" v-for="t in bill.tags" :key="t.id" :style="{ background: t.color + '22', color: t.color }">{{ t.name }}</span>
+          <div class="bii-info">
+            <div class="bii-name">{{ bill.remark || bill.category_name }}</div>
+            <div class="bii-cat">{{ bill.category_name }}</div>
+          </div>
+          <div class="bii-amt" :class="{ income: bill.type === 2, transfer: bill.type === 3 }">
+            {{ bill.type === 2 ? '+' : '-' }}¥ {{ formatMoney(bill.amount) }}
           </div>
         </div>
       </div>
-    </div>
-    <div class="empty-state" v-else>
-      <div class="icon">📭</div>
-      <p>本月暂无账单</p>
+
+      <div v-if="hasMore" class="load-more" @click="loadMore">加载更多</div>
     </div>
 
-    <Teleport to="body">
-      <div class="modal-overlay" v-if="showEdit" @click.self="showEdit = false">
-        <div class="modal-content card scale-in">
-          <h3>编辑账单</h3>
-          <div class="edit-form">
-            <div class="form-group">
-              <label>金额</label>
-              <input type="number" v-model="editForm.amount" step="0.01" />
-            </div>
-            <div class="form-group">
-              <label>备注</label>
-              <input type="text" v-model="editForm.remark" />
-            </div>
-            <div class="form-actions">
-              <button class="btn-delete" @click="deleteBill">删除</button>
-              <button class="btn-primary" @click="saveBill">保存</button>
-            </div>
-          </div>
+    <div v-if="showMonthPicker" class="modal-overlay" @click.self="showMonthPicker = false">
+      <div class="month-picker-modal">
+        <div class="picker-header">
+          <button @click="prevMonth">‹</button>
+          <span>{{ pickerYear }}年{{ pickerMonth }}月</span>
+          <button @click="nextMonth">›</button>
+        </div>
+        <div class="picker-actions">
+          <button class="btn-primary" @click="confirmMonth">确定</button>
         </div>
       </div>
-    </Teleport>
+    </div>
+
+    <div v-if="editingBill" class="modal-overlay" @click.self="editingBill = null">
+      <div class="edit-modal">
+        <div class="edit-header">
+          <span class="close-btn" @click="editingBill = null">✕</span>
+          <span class="edit-title">编辑账单</span>
+          <span class="delete-btn" @click="deleteBill">删除</span>
+        </div>
+        <div class="edit-body">
+          <div class="edit-row">
+            <label>金额</label>
+            <input type="number" v-model="editForm.amount" step="0.01" class="edit-input" />
+          </div>
+          <div class="edit-row">
+            <label>备注</label>
+            <input type="text" v-model="editForm.remark" class="edit-input" />
+          </div>
+          <div class="edit-row">
+            <label>日期</label>
+            <input type="date" v-model="editForm.bill_date" class="edit-input" />
+          </div>
+          <button class="btn-primary save-btn" @click="saveBill">保存</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
-import { billApi, type Bill } from '@/api/types'
-import { useDataStore } from '@/stores/data'
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useBillStore, useStatisticsStore } from '@/stores/data'
+import { formatMoney, formatDateCN, getWeekday, getMonthRange } from '@/utils/format'
+import dayjs from 'dayjs'
 
-const store = useDataStore()
-const bills = ref<Bill[]>([])
-const currentYear = ref(new Date().getFullYear())
-const currentMonth = ref(new Date().getMonth() + 1)
-const currentFilter = ref(0)
-const showEdit = ref(false)
-const editForm = ref({ id: 0, amount: 0, remark: '' })
+const billStore = useBillStore()
+const statsStore = useStatisticsStore()
 
-const filters = [
-  { label: '全部', value: 0 },
-  { label: '支出', value: 1 },
-  { label: '收入', value: 2 },
-]
+const currentMonth = ref(dayjs())
+const showMonthPicker = ref(false)
+const pickerYear = ref(dayjs().year())
+const pickerMonth = ref(dayjs().month() + 1)
+const editingBill = ref(null)
+const editForm = ref({ amount: 0, remark: '', bill_date: '' })
 
-const monthStr = computed(() => `${currentYear.value}年${currentMonth.value}月`)
+const loading = computed(() => billStore.loading)
+const hasMore = computed(() => billStore.bills.length < billStore.total)
 
-function formatMoney(n: number) {
-  return Math.abs(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const monthRange = computed(() => getMonthRange(currentMonth.value))
+const currentMonthLabel = computed(() => currentMonth.value.format('YYYY年M月'))
+const monthExpense = computed(() => statsStore.overview?.total_expense || 0)
+const monthIncome = computed(() => statsStore.overview?.total_income || 0)
+
+const groupedBills = computed(() => {
+  const groups = {}
+  for (const bill of billStore.bills) {
+    const date = bill.bill_date
+    if (!groups[date]) {
+      groups[date] = {
+        date,
+        label: `${formatDateCN(date)} ${getWeekday(date)}`,
+        bills: [],
+      }
+    }
+    groups[date].bills.push(bill)
+  }
+  return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date))
+})
+
+const catBgColors = ['#fef6ee', '#fef0e6', '#eef6fc', '#fceef6', '#f5f0ee', '#eff6ee', '#f0f0f4', '#f6f0ee']
+
+function getCatBgColor(icon) {
+  const idx = (icon || '').charCodeAt(0) % catBgColors.length
+  return catBgColors[idx]
 }
 
-const iconMap: Record<string, string> = {
-  '1': '🍜', '2': '🚌', '3': '🛒', '4': '🏠', '5': '🎮',
-  '6': '🏥', '7': '📚', '8': '📱', '9': '🎁', '10': '📌',
-  '46': '💰', '47': '💼', '48': '📈', '49': '🧧', '50': '↩️', '51': '📌',
+async function fetchBills() {
+  const range = monthRange.value
+  await Promise.all([
+    billStore.fetchBills({ ...range, page: 1 }),
+    statsStore.fetchOverview(range),
+  ])
 }
 
-function getCategoryIcon(id: number) {
-  const parentId = String(Math.floor(id / 10) * 10)
-  return iconMap[String(id)] || iconMap[parentId] || '📌'
+function loadMore() {
+  billStore.fetchBills({ ...monthRange.value, page: billStore.currentPage + 1 })
 }
 
 function prevMonth() {
-  if (currentMonth.value === 1) { currentMonth.value = 12; currentYear.value-- }
-  else currentMonth.value--
+  if (pickerMonth.value === 1) {
+    pickerMonth.value = 12
+    pickerYear.value--
+  } else {
+    pickerMonth.value--
+  }
 }
 
 function nextMonth() {
-  if (currentMonth.value === 12) { currentMonth.value = 1; currentYear.value++ }
-  else currentMonth.value++
+  if (pickerMonth.value === 12) {
+    pickerMonth.value = 1
+    pickerYear.value++
+  } else {
+    pickerMonth.value++
+  }
 }
 
-async function loadBills() {
-  const m = String(currentMonth.value).padStart(2, '0')
-  const start = `${currentYear.value}-${m}-01`
-  const lastDay = new Date(currentYear.value, currentMonth.value, 0).getDate()
-  const end = `${currentYear.value}-${m}-${lastDay}`
-  const params: any = { page: 1, size: 100, start_date: start, end_date: end }
-  if (currentFilter.value) params.type = currentFilter.value
-  try {
-    const res = await billApi.list(params)
-    bills.value = res.data?.items || []
-  } catch (e) { console.error(e) }
+function confirmMonth() {
+  currentMonth.value = dayjs(`${pickerYear.value}-${String(pickerMonth.value).padStart(2, '0')}-01`)
+  showMonthPicker.value = false
+  fetchBills()
 }
 
-function editBill(bill: Bill) {
-  editForm.value = { id: bill.id, amount: bill.amount, remark: bill.remark }
-  showEdit.value = true
+function editBill(bill) {
+  editingBill.value = bill
+  editForm.value = {
+    amount: bill.amount,
+    remark: bill.remark,
+    bill_date: bill.bill_date,
+  }
 }
 
 async function saveBill() {
+  if (!editingBill.value) return
   try {
-    await billApi.update(editForm.value.id, {
-      amount: editForm.value.amount,
-      remark: editForm.value.remark,
-    })
-    showEdit.value = false
-    await loadBills()
-    await store.refreshAccounts()
-  } catch (e) { console.error(e) }
+    await billStore.updateBill(editingBill.value.id, editForm.value)
+    editingBill.value = null
+    fetchBills()
+  } catch (e) {
+    alert(e.response?.data?.detail || '保存失败')
+  }
 }
 
 async function deleteBill() {
+  if (!editingBill.value) return
+  if (!confirm('确定删除此账单？')) return
   try {
-    await billApi.delete(editForm.value.id)
-    showEdit.value = false
-    await loadBills()
-    await store.refreshAccounts()
-  } catch (e) { console.error(e) }
+    await billStore.deleteBill(editingBill.value.id)
+    editingBill.value = null
+    fetchBills()
+  } catch (e) {
+    alert(e.response?.data?.detail || '删除失败')
+  }
 }
 
-watch([currentYear, currentMonth, currentFilter], loadBills)
-onMounted(() => { store.loadAll(); loadBills() })
+watch(currentMonth, fetchBills)
+
+onMounted(fetchBills)
 </script>
 
 <style scoped>
-.filter-tabs { display: flex; gap: 6px; }
-.filter-btn {
-  padding: 6px 14px;
-  border-radius: 20px;
+.overview-cards {
+  display: flex;
+  gap: 10px;
+  margin: 0 16px 12px;
+}
+
+.ov-card {
+  flex: 1;
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+
+.ov-label {
+  font-size: 11px;
+  color: #aaa;
+  margin-bottom: 4px;
+}
+
+.ov-val {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.bill-group {
+  padding: 8px 16px;
+}
+
+.group-date {
   font-size: 13px;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-.filter-btn.active {
-  background: var(--primary-bg);
-  color: var(--primary-light);
-  border-color: var(--primary);
+  font-weight: 700;
+  color: #888;
+  margin-bottom: 8px;
 }
 
-.month-nav {
+.bill-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 0.5px solid #f0ece5;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bill-item:active {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.bii-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-.nav-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--bg-card);
-  color: var(--text);
   font-size: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
+  flex-shrink: 0;
 }
-.nav-btn:active { transform: scale(0.9); }
-.month-text { font-size: 16px; font-weight: 600; }
 
-.bill-list { display: flex; flex-direction: column; gap: 8px; }
-.bill-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; }
-.bill-item:active { transform: scale(0.98); }
-.bill-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-.bill-icon {
-  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
-  font-size: 20px; background: var(--bg-input); border-radius: 12px; flex-shrink: 0;
+.bii-info {
+  flex: 1;
+  min-width: 0;
 }
-.bill-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.bill-category { font-size: 15px; font-weight: 500; }
-.bill-meta { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bill-right { text-align: right; flex-shrink: 0; margin-left: 12px; }
-.bill-amount { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.income-text { color: var(--income); }
-.expense-text { color: var(--expense); }
-.bill-tags { display: flex; gap: 4px; margin-top: 4px; justify-content: flex-end; }
-.mini-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+
+.bii-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bii-cat {
+  font-size: 11px;
+  color: #bbb;
+  margin-top: 1px;
+}
+
+.bii-amt {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.bii-amt.income {
+  color: var(--success);
+}
+
+.bii-amt.transfer {
+  color: #7b9bd4;
+}
+
+.load-more {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-light);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.loading-center {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
 
 .modal-overlay {
-  position: fixed; inset: 0; background: var(--bg-overlay); z-index: 200;
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-  animation: fadeIn 0.2s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
 }
-.modal-content { width: 100%; max-width: 360px; }
-.modal-content h3 { font-size: 18px; margin-bottom: 20px; }
-.edit-form { display: flex; flex-direction: column; gap: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
-.form-actions { display: flex; gap: 12px; margin-top: 8px; }
-.btn-delete {
-  flex: 1; padding: 14px; border-radius: var(--radius-sm);
-  background: var(--expense-bg); color: var(--expense); font-weight: 600;
+
+.month-picker-modal,
+.edit-modal {
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 320px;
 }
-.btn-primary { flex: 2; }
+
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.picker-header button {
+  font-size: 22px;
+  color: var(--accent);
+  padding: 4px 12px;
+}
+
+.picker-actions {
+  text-align: center;
+}
+
+.picker-actions .btn-primary {
+  width: 100%;
+}
+
+.edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.close-btn {
+  font-size: 18px;
+  color: #bbb;
+  cursor: pointer;
+}
+
+.edit-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.delete-btn {
+  font-size: 14px;
+  color: var(--danger);
+  cursor: pointer;
+}
+
+.edit-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 0.5px solid #f0ece5;
+}
+
+.edit-row label {
+  width: 60px;
+  font-size: 14px;
+  color: #777;
+  flex-shrink: 0;
+}
+
+.edit-input {
+  flex: 1;
+  border: none;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.save-btn {
+  width: 100%;
+  margin-top: 20px;
+}
 </style>

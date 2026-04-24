@@ -1,246 +1,248 @@
-﻿<template>
-  <div class="page home">
-    <div class="page-header">
-      <h1>记账</h1>
-      <span class="date-text">{{ todayStr }}</span>
+<template>
+  <div class="page home-page">
+    <div class="home-header">
+      <div>
+        <div class="home-greet">你好呀 👋</div>
+        <div class="home-date">开始记录你的每一笔开销吧</div>
+      </div>
+      <span class="eye-btn" @click="toggleAmount">{{ showAmount ? '👁' : '👁‍🗨' }}</span>
     </div>
 
-    <div class="overview-card card" v-if="overview">
-      <div class="overview-balance">
-        <span class="label">本月结余</span>
-        <span class="amount" :class="overview.balance >= 0 ? 'positive' : 'negative'">
-          ¥{{ formatMoney(overview.balance) }}
-        </span>
+    <div class="card" style="margin-top: 8px">
+      <div class="card-top-row">
+        <span class="card-label">本月支出(元)</span>
+        <span class="eye-btn" @click="toggleAmount">{{ showAmount ? '👁' : '👁‍🗨' }}</span>
       </div>
-      <div class="overview-row">
-        <div class="overview-item">
-          <span class="dot income"></span>
-          <span class="label">收入</span>
-          <span class="value income-text">¥{{ formatMoney(overview.total_income) }}</span>
-        </div>
-        <div class="overview-item">
-          <span class="dot expense"></span>
-          <span class="label">支出</span>
-          <span class="value expense-text">¥{{ formatMoney(overview.total_expense) }}</span>
-        </div>
+      <div class="amount-row">
+        <span class="amount-val">{{ showAmount ? formatMoneyWithSymbol(monthExpense) : '¥ ****' }}</span>
       </div>
-    </div>
+      <div class="sub-info">
+        <span>本月收入 {{ showAmount ? formatMoneyWithSymbol(monthIncome) : '****' }}</span>
+        <span>结余 {{ showAmount ? formatMoneyWithSymbol(monthBalance) : '****' }}</span>
+      </div>
 
-    <div class="section-title" style="margin-top: 28px">最近账单</div>
-    <div class="bill-list" v-if="bills.length">
-      <div
-        class="bill-item card"
-        v-for="bill in bills"
-        :key="bill.id"
-        @click="goToBills"
-      >
-        <div class="bill-left">
-          <span class="bill-icon">{{ getCategoryIcon(bill.category_id) }}</span>
-          <div class="bill-info">
-            <span class="bill-category">{{ bill.category_name }}</span>
-            <span class="bill-meta">{{ bill.account_name }}{{ bill.remark ? ' · ' + bill.remark : '' }}</span>
+      <div style="margin-top: 18px">
+        <div class="section-title">本月支出占比</div>
+        <div class="donut-chart-wrap">
+          <div class="donut-chart-container">
+            <canvas ref="donutCanvas" width="130" height="130"></canvas>
+            <div class="donut-center">
+              <div class="donut-amount">{{ showAmount ? formatMoney(monthExpense) : '****' }}</div>
+              <div class="donut-label">总支出</div>
+            </div>
+          </div>
+          <div class="legend-list">
+            <div v-for="(stat, idx) in categoryStats" :key="stat.category_id" class="legend-item">
+              <div class="legend-dot" :style="{ background: COLORS[idx % COLORS.length] }"></div>
+              <span class="legend-name">{{ stat.category_name }}</span>
+              <span class="legend-pct">{{ stat.percentage.toFixed(0) }}%</span>
+              <span class="legend-amt">{{ showAmount ? '¥' + formatMoney(stat.amount) : '****' }}</span>
+            </div>
           </div>
         </div>
-        <span class="bill-amount" :class="bill.type === 2 ? 'income-text' : 'expense-text'">
-          {{ bill.type === 2 ? '+' : '-' }}¥{{ formatMoney(bill.amount) }}
-        </span>
       </div>
     </div>
-    <div class="empty-state" v-else>
-      <div class="icon">📝</div>
-      <p>暂无账单，点击下方记账开始</p>
-    </div>
-
-    <button class="fab" @click="$router.push('/add')">
-      <span>+</span>
-    </button>
-    <button class="fab fab-ai" @click="$router.push('/ai-accounting')">
-      <span>🤖</span>
-    </button>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { statisticsApi, billApi, type Overview, type Bill } from '@/api/types'
-import { useDataStore } from '@/stores/data'
+<script setup>
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { useStatisticsStore, useCategoryStore } from '@/stores/data'
+import { formatMoney, formatMoneyWithSymbol, getMonthRange, CATEGORY_COLORS } from '@/utils/format'
+import dayjs from 'dayjs'
+import Chart from 'chart.js/auto'
 
-const router = useRouter()
-const store = useDataStore()
-const overview = ref<Overview | null>(null)
-const bills = ref<Bill[]>([])
+const COLORS = CATEGORY_COLORS
+const statsStore = useStatisticsStore()
+const categoryStore = useCategoryStore()
 
-const todayStr = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' })
+const showAmount = ref(true)
+const donutCanvas = ref(null)
+let chartInstance = null
 
-function formatMoney(n: number) {
-  return Math.abs(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const monthRange = computed(() => getMonthRange(dayjs()))
+const monthExpense = computed(() => statsStore.overview?.total_expense || 0)
+const monthIncome = computed(() => statsStore.overview?.total_income || 0)
+const monthBalance = computed(() => statsStore.overview?.balance || 0)
+const categoryStats = computed(() => statsStore.categoryStats)
+
+function toggleAmount() {
+  showAmount.value = !showAmount.value
 }
 
-const iconMap: Record<string, string> = {
-  '1': '🍜', '2': '🚌', '3': '🛒', '4': '🏠', '5': '🎮',
-  '6': '🏥', '7': '📚', '8': '📱', '9': '🎁', '10': '📌',
-  '46': '💰', '47': '💼', '48': '📈', '49': '🧧', '50': '↩️', '51': '📌',
+function renderDonut() {
+  if (!donutCanvas.value || !categoryStats.value.length) return
+
+  if (chartInstance) {
+    chartInstance.destroy()
+  }
+
+  const data = categoryStats.value
+  const colors = data.map((_, i) => COLORS[i % COLORS.length])
+
+  chartInstance = new Chart(donutCanvas.value, {
+    type: 'doughnut',
+    data: {
+      labels: data.map(d => d.category_name),
+      datasets: [{
+        data: data.map(d => d.amount),
+        backgroundColor: colors,
+        borderWidth: 0,
+        cutout: '72%',
+      }],
+    },
+    options: {
+      responsive: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false },
+      },
+      animation: { animateRotate: true, duration: 800 },
+    },
+  })
 }
 
-function getCategoryIcon(id: number) {
-  const parentId = Math.floor(id / 10) * 10
-  if (id <= 10 || (id >= 46 && id <= 51)) return iconMap[String(id)] || iconMap[String(parentId)] || '📌'
-  return iconMap[String(parentId)] || '📌'
-}
-
-function goToBills() {
-  router.push('/bills')
-}
+watch(categoryStats, () => {
+  nextTick(renderDonut)
+})
 
 onMounted(async () => {
-  await store.loadAll()
-  const now = new Date()
-  const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-  const end = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-
-  try {
-    const [overviewRes, billsRes] = await Promise.all([
-      statisticsApi.overview({ start_date: start, end_date: end }),
-      billApi.list({ page: 1, size: 5, start_date: start, end_date: end }),
-    ])
-    overview.value = overviewRes.data
-    bills.value = billsRes.data?.items || []
-  } catch (e) {
-    console.error(e)
-  }
+  const range = monthRange.value
+  await Promise.all([
+    statsStore.fetchOverview(range),
+    statsStore.fetchCategoryStats({ ...range, type: 1 }),
+    categoryStore.fetchCategories(),
+  ])
+  nextTick(renderDonut)
 })
 </script>
 
 <style scoped>
-.overview-card {
-  background: var(--overview-card-bg);
-  border: 1px solid var(--overview-card-border);
-  overflow: hidden;
-  position: relative;
+.home-header {
+  padding: 16px 20px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
-.overview-card::before {
-  content: '';
+
+.home-greet {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.home-date {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.eye-btn {
+  font-size: 16px;
+  color: #c4b8a0;
+  cursor: pointer;
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.card-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.amount-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.amount-val {
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -1px;
+}
+
+.sub-info {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.donut-chart-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.donut-chart-container {
+  width: 130px;
+  height: 130px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.donut-center {
   position: absolute;
-  top: -50%;
-  right: -30%;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, var(--primary-bg) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
   pointer-events: none;
 }
 
-.overview-balance {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 20px;
-}
-.overview-balance .label { font-size: 13px; color: var(--text-secondary); }
-.overview-balance .amount {
-  font-size: 36px;
+.donut-amount {
+  font-size: 17px;
   font-weight: 800;
-  letter-spacing: -1px;
-  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
-.positive { color: var(--income); }
-.negative { color: var(--expense); }
 
-.overview-row {
-  display: flex;
-  gap: 24px;
+.donut-label {
+  font-size: 11px;
+  color: var(--text-muted);
 }
-.overview-item {
+
+.legend-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legend-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 12px;
 }
-.dot {
-  width: 8px;
-  height: 8px;
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-}
-.dot.income { background: var(--income); }
-.dot.expense { background: var(--expense); }
-.overview-item .label { font-size: 13px; color: var(--text-secondary); }
-.income-text { color: var(--income); }
-.expense-text { color: var(--expense); }
-.overview-item .value { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-
-.bill-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-shrink: 0;
 }
 
-.bill-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  cursor: pointer;
+.legend-name {
+  color: #666;
+  flex: 1;
 }
-.bill-item:active { transform: scale(0.98); }
 
-.bill-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.bill-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  background: var(--bg-input);
-  border-radius: 12px;
-}
-.bill-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.bill-category { font-size: 15px; font-weight: 500; }
-.bill-meta { font-size: 12px; color: var(--text-muted); }
-
-.bill-amount {
-  font-size: 16px;
+.legend-pct {
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  color: #444;
 }
 
-.date-text { font-size: 13px; color: var(--text-secondary); }
-
-.fab {
-  position: fixed;
-  bottom: 100px;
-  right: calc(50% - 220px);
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
-  font-size: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
-  z-index: 50;
-  transition: all var(--transition);
-}
-.fab:active { transform: scale(0.9); }
-.fab-ai {
-  right: calc(50% - 220px + 70px);
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
-  font-size: 22px;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
-}
-@media (max-width: 480px) {
-  .fab { right: 20px; }
-  .fab-ai { right: 90px; }
+.legend-amt {
+  color: #999;
+  font-size: 11px;
 }
 </style>
-
-

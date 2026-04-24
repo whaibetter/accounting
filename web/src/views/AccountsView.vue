@@ -1,145 +1,348 @@
-﻿<template>
-  <div class="page accounts">
+<template>
+  <div class="page accounts-page">
     <div class="page-header">
-      <h1>账户</h1>
-      <button class="import-btn" @click="$router.push('/import')">📥 导入</button>
+      <span class="page-title">资产</span>
+      <span class="eye-btn" @click="showAmount = !showAmount">{{ showAmount ? '👁' : '👁‍🗨' }}</span>
     </div>
 
-    <div class="total-card card">
-      <span class="total-label">总资产</span>
-      <span class="total-amount" :class="totalBalance >= 0 ? 'positive' : 'negative'">
-        ¥{{ formatMoney(totalBalance) }}
-      </span>
+    <div class="card" style="text-align: center">
+      <div class="asset-net">
+        <div class="asset-label">净资产</div>
+        <div class="asset-big">{{ showAmount ? '¥ ' + formatMoney(netWorth) : '¥ ****' }}</div>
+        <div class="asset-split">
+          <span>资产 <b style="color: var(--text-primary)">{{ showAmount ? '¥' + formatMoney(totalAssets) : '****' }}</b></span>
+          <span>负债 <b style="color: var(--accent)">{{ showAmount ? '¥' + formatMoney(totalDebts) : '****' }}</b></span>
+        </div>
+      </div>
     </div>
 
-    <div class="account-list" v-if="store.accounts.length">
-      <div class="account-item card" v-for="acc in store.accounts" :key="acc.id">
-        <div class="acc-left">
-          <span class="acc-icon">{{ typeIcons[acc.type] || '💳' }}</span>
-          <div class="acc-info">
-            <span class="acc-name">{{ acc.name }}</span>
-            <span class="acc-type">{{ typeLabels[acc.type] || '其他' }}</span>
+    <div class="card">
+      <div class="section-title">资产账户</div>
+      <div class="account-list">
+        <div v-for="acc in activeAccounts" :key="acc.id" class="acct-item">
+          <div class="acct-dot" :style="{ background: getAccountTypeColor(acc.type) }"></div>
+          <span class="acct-name">{{ acc.name }}</span>
+          <span class="acct-amt">{{ showAmount ? '¥ ' + formatMoney(acc.balance) : '****' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title" style="margin-bottom: 0">账户管理</span>
+        <button class="add-btn" @click="showAddForm = true">+ 新增</button>
+      </div>
+      <div v-for="acc in accounts" :key="acc.id" class="acct-manage-item">
+        <div class="acct-dot" :style="{ background: getAccountTypeColor(acc.type) }"></div>
+        <div class="acct-info">
+          <span class="acct-name">{{ acc.name }}</span>
+          <span class="acct-type">{{ getAccountTypeName(acc.type) }}</span>
+        </div>
+        <div class="acct-actions">
+          <button class="action-btn edit" @click="editAccount(acc)">编辑</button>
+          <button class="action-btn delete" @click="deleteAccount(acc.id)">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showAddForm || editingAccount" class="modal-overlay" @click.self="closeForm">
+      <div class="form-modal">
+        <div class="form-header">
+          <span class="close-btn" @click="closeForm">✕</span>
+          <span class="form-title">{{ editingAccount ? '编辑账户' : '新增账户' }}</span>
+          <span style="width: 20px"></span>
+        </div>
+        <div class="form-body">
+          <div class="form-field">
+            <label>账户名称</label>
+            <input v-model="form.name" type="text" placeholder="请输入账户名称" class="form-input" />
           </div>
-        </div>
-        <span class="acc-balance" :class="acc.balance >= 0 ? 'positive' : 'negative'">
-          ¥{{ formatMoney(acc.balance) }}
-        </span>
-      </div>
-    </div>
-
-    <div class="section-title" style="margin-top: 28px">添加账户</div>
-    <div class="card add-form">
-      <div class="form-group">
-        <label>账户名称</label>
-        <input type="text" v-model="newAccount.name" placeholder="如：招商银行储蓄卡" />
-      </div>
-      <div class="form-group">
-        <label>账户类型</label>
-        <div class="type-grid">
-          <button
-            v-for="(label, key) in typeLabels"
-            :key="key"
-            class="type-btn"
-            :class="{ active: newAccount.type === Number(key) }"
-            @click="newAccount.type = Number(key)"
-          >
-            {{ typeIcons[key] }} {{ label }}
-          </button>
+          <div class="form-field">
+            <label>账户类型</label>
+            <select v-model="form.type" class="form-input">
+              <option :value="1">现金</option>
+              <option :value="2">银行卡</option>
+              <option :value="3">信用卡</option>
+              <option :value="4">支付宝</option>
+              <option :value="5">微信</option>
+              <option :value="6">其他</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>初始余额</label>
+            <input v-model.number="form.initial_balance" type="number" step="0.01" class="form-input" />
+          </div>
+          <div class="form-field">
+            <label>设为默认</label>
+            <input v-model="form.is_default" type="checkbox" class="form-checkbox" />
+          </div>
+          <button class="btn-primary save-btn" @click="saveAccount">保存</button>
         </div>
       </div>
-      <div class="form-group">
-        <label>初始余额</label>
-        <input type="number" v-model="newAccount.initial_balance" placeholder="0.00" step="0.01" />
-      </div>
-      <button class="btn-primary" @click="addAccount" :disabled="!newAccount.name">添加</button>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed, onMounted } from 'vue'
-import { accountApi } from '@/api/types'
-import { useDataStore } from '@/stores/data'
+import { useAccountStore } from '@/stores/data'
+import { formatMoney, getAccountTypeName, getAccountTypeColor } from '@/utils/format'
 
-const store = useDataStore()
+const accountStore = useAccountStore()
 
-const typeLabels: Record<number, string> = {
-  1: '现金', 2: '银行卡', 3: '信用卡', 4: '支付宝', 5: '微信', 6: '其他',
-}
-const typeIcons: Record<number, string> = {
-  1: '💵', 2: '🏦', 3: '💳', 4: '🔵', 5: '💚', 6: '📌',
-}
+const showAmount = ref(true)
+const showAddForm = ref(false)
+const editingAccount = ref(null)
+const form = ref({ name: '', type: 1, initial_balance: 0, is_default: false })
 
-const newAccount = ref({
-  name: '',
-  type: 1,
-  initial_balance: 0,
-})
+const accounts = computed(() => accountStore.accounts)
+const activeAccounts = computed(() => accounts.value.filter(a => a.status === 1))
+const totalAssets = computed(() => accountStore.totalAssets())
+const totalDebts = computed(() => accountStore.totalDebts())
+const netWorth = computed(() => totalAssets.value - totalDebts.value)
 
-const totalBalance = computed(() => store.accounts.reduce((sum, a) => sum + a.balance, 0))
-
-function formatMoney(n: number) {
-  return Math.abs(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function editAccount(acc) {
+  editingAccount.value = acc
+  form.value = { name: acc.name, type: acc.type, initial_balance: acc.initial_balance, is_default: acc.is_default === 1 }
 }
 
-async function addAccount() {
-  if (!newAccount.value.name) return
+function closeForm() {
+  showAddForm.value = false
+  editingAccount.value = null
+  form.value = { name: '', type: 1, initial_balance: 0, is_default: false }
+}
+
+async function saveAccount() {
+  if (!form.value.name) {
+    alert('请输入账户名称')
+    return
+  }
   try {
-    await accountApi.create({
-      name: newAccount.value.name,
-      type: newAccount.value.type,
-      initial_balance: Number(newAccount.value.initial_balance) || 0,
-    })
-    newAccount.value = { name: '', type: 1, initial_balance: 0 }
-    await store.refreshAccounts()
-  } catch (e: any) {
-    alert(e.message || '添加失败')
+    if (editingAccount.value) {
+      await accountStore.updateAccount(editingAccount.value.id, {
+        name: form.value.name,
+        type: form.value.type,
+      })
+    } else {
+      await accountStore.createAccount(form.value)
+    }
+    closeForm()
+    accountStore.fetchAccounts()
+  } catch (e) {
+    alert(e.response?.data?.detail || '保存失败')
   }
 }
 
-onMounted(() => store.loadAll())
+async function deleteAccount(id) {
+  if (!confirm('确定删除此账户？')) return
+  try {
+    await accountStore.deleteAccount(id)
+    accountStore.fetchAccounts()
+  } catch (e) {
+    alert(e.response?.data?.detail || '删除失败')
+  }
+}
+
+onMounted(() => accountStore.fetchAccounts())
 </script>
 
 <style scoped>
-.total-card {
-  text-align: center;
-  padding: 28px 20px;
-  background: var(--overview-card-bg);
-  border: 1px solid var(--overview-card-border);
+.eye-btn {
+  font-size: 16px;
+  color: #c4b8a0;
+  cursor: pointer;
+}
+
+.asset-net {
+  padding: 24px 0 16px;
+}
+
+.asset-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.asset-big {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -1px;
+  margin-top: 4px;
+}
+
+.asset-split {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.account-list {
+  padding: 0;
+}
+
+.acct-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 0.5px solid #f0ece5;
+}
+
+.acct-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.acct-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.acct-amt {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.add-btn {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.acct-manage-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 0.5px solid #f0ece5;
+}
+
+.acct-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.acct-type {
+  font-size: 11px;
+  color: #bbb;
+}
+
+.acct-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.action-btn.edit {
+  color: var(--accent);
+  background: rgba(212, 165, 116, 0.1);
+}
+
+.action-btn.delete {
+  color: var(--danger);
+  background: rgba(212, 123, 123, 0.1);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.form-modal {
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
 }
-.total-label { font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
-.total-amount { font-size: 32px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
-.positive { color: var(--income); }
-.negative { color: var(--expense); }
 
-.account-list { display: flex; flex-direction: column; gap: 8px; }
-.account-item { display: flex; align-items: center; justify-content: space-between; padding: 16px; }
-.acc-left { display: flex; align-items: center; gap: 12px; }
-.acc-icon {
-  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-  font-size: 22px; background: var(--bg-input); border-radius: 12px;
+.close-btn {
+  font-size: 18px;
+  color: #bbb;
+  cursor: pointer;
 }
-.acc-info { display: flex; flex-direction: column; gap: 2px; }
-.acc-name { font-size: 15px; font-weight: 500; }
-.acc-type { font-size: 12px; color: var(--text-muted); }
-.acc-balance { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.add-form { display: flex; flex-direction: column; gap: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
-
-.type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.type-btn {
-  padding: 10px; border-radius: var(--radius-sm); background: var(--bg-input);
-  color: var(--text-secondary); border: 1px solid var(--border); font-size: 13px;
-  text-align: center;
+.form-title {
+  font-size: 17px;
+  font-weight: 700;
 }
-.type-btn.active { background: var(--primary-bg); color: var(--primary-light); border-color: var(--primary); }
 
-.import-btn {
-  font-size: 13px; padding: 6px 14px; border-radius: 20px;
-  background: var(--primary-bg); color: var(--primary-light); border: 1px solid var(--primary);
+.form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 13px;
+  color: #777;
+}
+
+.form-input {
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.form-input:focus {
+  border-color: var(--accent);
+}
+
+.form-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.save-btn {
+  width: 100%;
+  margin-top: 8px;
 }
 </style>
-
