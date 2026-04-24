@@ -15,6 +15,7 @@ const routes = [
       { path: '', name: 'Home', component: () => import('@/views/HomeView.vue') },
       { path: 'bills', name: 'Bills', component: () => import('@/views/BillsView.vue') },
       { path: 'statistics', name: 'Statistics', component: () => import('@/views/StatisticsView.vue') },
+      { path: 'balance-trend', name: 'BalanceTrend', component: () => import('@/views/BalanceTrendView.vue') },
       { path: 'profile', name: 'Profile', component: () => import('@/views/ProfileView.vue') },
     ],
   },

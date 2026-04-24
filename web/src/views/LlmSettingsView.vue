@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page llm-settings">
     <div class="page-header">
       <button class="back-btn" @click="$router.back()">‹</button>
@@ -63,11 +63,12 @@
       <div class="form-group">
         <label>模型</label>
         <div class="model-row" v-if="currentProvider?.models?.length">
-          <select v-model="form.model" class="model-select">
-            <option value="">自动选择</option>
-            <option v-for="m in currentProvider.models" :key="m" :value="m">{{ m }}</option>
-            <option value="__custom__">自定义模型...</option>
-          </select>
+          <CustomSelect
+            v-model="form.model"
+            :options="modelOptions"
+            placeholder="自动选择"
+            class="model-select"
+          />
         </div>
         <input
           v-else
@@ -138,6 +139,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { llmApi, type LlmConfig, type LlmProvider } from '@/api/types'
+import CustomSelect from '@/components/CustomSelect.vue'
 
 const config = ref<Partial<LlmConfig>>({
   provider: 'openrouter',
@@ -169,6 +171,17 @@ const form = reactive({
 })
 
 const currentProvider = computed(() => providers.value[form.provider])
+
+const modelOptions = computed(() => {
+  const opts = [{ label: '自动选择', value: '' }]
+  if (currentProvider.value?.models?.length) {
+    for (const m of currentProvider.value.models) {
+      opts.push({ label: m, value: m })
+    }
+  }
+  opts.push({ label: '自定义模型...', value: '__custom__' })
+  return opts
+})
 
 function showToast(message: string, type: string) {
   toast.message = message
@@ -309,9 +322,7 @@ onMounted(loadConfig)
 
 .model-row { display: flex; gap: 8px; }
 .model-select {
-  flex: 1; font-size: 14px; padding: 12px 16px;
-  background: var(--bg-input); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  flex: 1;
 }
 .custom-model-input { margin-top: 8px; }
 

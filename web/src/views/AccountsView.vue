@@ -1,6 +1,7 @@
 <template>
   <div class="page accounts-page">
     <div class="page-header">
+      <span class="back-btn" @click="$router.back()">‹</span>
       <span class="page-title">资产</span>
       <span class="eye-btn" @click="showAmount = !showAmount">{{ showAmount ? '👁' : '👁‍🗨' }}</span>
     </div>
@@ -59,14 +60,12 @@
           </div>
           <div class="form-field">
             <label>账户类型</label>
-            <select v-model="form.type" class="form-input">
-              <option :value="1">现金</option>
-              <option :value="2">银行卡</option>
-              <option :value="3">信用卡</option>
-              <option :value="4">支付宝</option>
-              <option :value="5">微信</option>
-              <option :value="6">其他</option>
-            </select>
+            <CustomSelect
+              v-model="form.type"
+              :options="accountTypeOptions"
+              placeholder="选择账户类型"
+              class="form-input"
+            />
           </div>
           <div class="form-field">
             <label>初始余额</label>
@@ -87,8 +86,18 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAccountStore } from '@/stores/data'
 import { formatMoney, getAccountTypeName, getAccountTypeColor } from '@/utils/format'
+import CustomSelect from '@/components/CustomSelect.vue'
 
 const accountStore = useAccountStore()
+
+const accountTypeOptions = [
+  { label: '现金', value: 1 },
+  { label: '银行卡', value: 2 },
+  { label: '信用卡', value: 3 },
+  { label: '支付宝', value: 4 },
+  { label: '微信', value: 5 },
+  { label: '其他', value: 6 },
+]
 
 const showAmount = ref(true)
 const showAddForm = ref(false)
@@ -147,6 +156,13 @@ onMounted(() => accountStore.fetchAccounts())
 </script>
 
 <style scoped>
+.back-btn {
+  font-size: 22px;
+  color: var(--text-primary);
+  cursor: pointer;
+  width: 24px;
+}
+
 .eye-btn {
   font-size: 16px;
   color: #c4b8a0;

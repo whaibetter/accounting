@@ -47,10 +47,12 @@
           </div>
           <div v-if="!editingCategory" class="form-field">
             <label>父分类</label>
-            <select v-model="form.parent_id" class="form-input">
-              <option :value="null">无（顶级分类）</option>
-              <option v-for="cat in topLevelCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-            </select>
+            <CustomSelect
+              v-model="form.parent_id"
+              :options="parentCategoryOptions"
+              placeholder="无（顶级分类）"
+              class="form-input"
+            />
           </div>
           <button class="btn-primary save-btn" @click="saveCategory">保存</button>
         </div>
@@ -62,6 +64,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCategoryStore } from '@/stores/data'
+import CustomSelect from '@/components/CustomSelect.vue'
 
 const categoryStore = useCategoryStore()
 
@@ -72,6 +75,11 @@ const form = ref({ name: '', icon: '', parent_id: null })
 
 const displayCategories = computed(() => categoryStore.categories.filter(c => c.type === currentType.value))
 const topLevelCategories = computed(() => displayCategories.value.filter(c => !c.parent_id))
+
+const parentCategoryOptions = computed(() => [
+  { label: '无（顶级分类）', value: null },
+  ...topLevelCategories.value.map(cat => ({ label: cat.name, value: cat.id })),
+])
 
 function editCategory(cat) {
   editingCategory.value = cat

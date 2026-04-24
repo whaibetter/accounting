@@ -4,6 +4,9 @@ export const authApi = {
   login(password) {
     return api.post('/auth/login', { password })
   },
+  changePassword(data) {
+    return api.post('/auth/change-password', data)
+  },
 }
 
 export const billApi = {

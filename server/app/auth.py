@@ -74,3 +74,30 @@ def verify_token(token: str, token_type: str = "access") -> Optional[str]:
         return payload.get("sub")
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
+
+
+def change_password(old_password: str, new_password: str) -> bool:
+    """
+    修改系统访问密码
+    
+    Args:
+        old_password: 旧密码
+        new_password: 新密码
+    
+    Returns:
+        bool: 是否修改成功
+    """
+    if not verify_password(old_password):
+        return False
+    
+    hashed = _hash_password(new_password)
+    os.makedirs(os.path.dirname(_PASSWORD_FILE), exist_ok=True)
+    with open(_PASSWORD_FILE, "w") as f:
+        f.write(hashed)
+    os.chmod(_PASSWORD_FILE, 0o600)
+    
+    # 更新全局密码哈希
+    global PASSWORD_HASH
+    PASSWORD_HASH = hashed
+    
+    return True

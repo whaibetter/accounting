@@ -7,9 +7,9 @@
     </div>
 
     <div class="tab-bar">
-      <div class="tab-item" :class="{ active: billType === 1 }" @click="billType = 1">支出</div>
-      <div class="tab-item" :class="{ active: billType === 2 }" @click="billType = 2">收入</div>
-      <div class="tab-item" :class="{ active: billType === 3 }" @click="billType = 3">转账</div>
+      <div class="tab-item" :class="{ active: billType === 1 }" @click="switchType(1)">支出</div>
+      <div class="tab-item" :class="{ active: billType === 2 }" @click="switchType(2)">收入</div>
+      <div class="tab-item" :class="{ active: billType === 3 }" @click="switchType(3)">转账</div>
     </div>
 
     <div class="cat-grid">
@@ -30,15 +30,21 @@
     <div class="form-section">
       <div class="form-row">
         <label>账户</label>
-        <select v-model="selectedAccountId" class="form-select">
-          <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-        </select>
+        <CustomSelect
+          v-model="selectedAccountId"
+          :options="accountOptions"
+          placeholder="选择账户"
+          class="form-select"
+        />
       </div>
       <div v-if="billType === 3" class="form-row">
         <label>转入账户</label>
-        <select v-model="transferToAccountId" class="form-select">
-          <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-        </select>
+        <CustomSelect
+          v-model="transferToAccountId"
+          :options="accountOptions"
+          placeholder="选择转入账户"
+          class="form-select"
+        />
       </div>
       <div class="form-row">
         <label>日期</label>
@@ -46,7 +52,7 @@
       </div>
       <div class="form-row">
         <label>备注</label>
-        <input type="text" v-model="remark" placeholder="添加备注" class="form-input" />
+        <input type="text" v-model="remark" placeholder="添加备注..." class="form-input" />
       </div>
     </div>
 
@@ -54,19 +60,22 @@
       <div class="display-amount">¥ {{ displayAmount }}</div>
       <div class="keypad-grid">
         <button class="key-btn op" @click="clearAmount">清空</button>
-        <button class="key-btn" @click="inputKey('1')">1</button>
-        <button class="key-btn" @click="inputKey('2')">2</button>
-        <button class="key-btn" @click="inputKey('3')">3</button>
+        <button class="key-btn num" @click="inputKey('1')">1</button>
+        <button class="key-btn num" @click="inputKey('2')">2</button>
+        <button class="key-btn num" @click="inputKey('3')">3</button>
         <button class="key-btn op" @click="backspace">⌫</button>
-        <button class="key-btn" @click="inputKey('4')">4</button>
-        <button class="key-btn" @click="inputKey('5')">5</button>
-        <button class="key-btn" @click="inputKey('6')">6</button>
+
+        <button class="key-btn num" @click="inputKey('4')">4</button>
+        <button class="key-btn num" @click="inputKey('5')">5</button>
+        <button class="key-btn num" @click="inputKey('6')">6</button>
         <button class="key-btn op" @click="toggleSign">±</button>
-        <button class="key-btn" @click="inputKey('7')">7</button>
-        <button class="key-btn" @click="inputKey('8')">8</button>
-        <button class="key-btn" @click="inputKey('9')">9</button>
+
+        <button class="key-btn num" @click="inputKey('7')">7</button>
+        <button class="key-btn num" @click="inputKey('8')">8</button>
+        <button class="key-btn num" @click="inputKey('9')">9</button>
         <button class="key-btn op" @click="inputDot">.</button>
-        <button class="key-btn zero-btn" @click="inputKey('0')">0</button>
+
+        <button class="key-btn num zero-btn" @click="inputKey('0')">0</button>
         <button class="key-btn confirm" @click="submitBill">✓</button>
       </div>
     </div>
@@ -77,6 +86,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBillStore, useAccountStore, useCategoryStore } from '@/stores/data'
+import CustomSelect from '@/components/CustomSelect.vue'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -98,6 +108,10 @@ const catBgColors = ['#fef6ee', '#fef0e6', '#eef6fc', '#fceef6', '#f5f0ee', '#ef
 
 const accounts = computed(() => accountStore.accounts.filter(a => a.status === 1))
 
+const accountOptions = computed(() =>
+  accounts.value.map(acc => ({ label: acc.name, value: acc.id }))
+)
+
 const displayCategories = computed(() => {
   const typeMap = { 1: 1, 2: 2, 3: 1 }
   const catType = typeMap[billType.value]
@@ -109,6 +123,11 @@ const displayAmount = computed(() => {
   const num = parseFloat(amountStr.value) || 0
   return (isNegative.value ? -num : num).toFixed(2)
 })
+
+function switchType(t) {
+  billType.value = t
+  selectedCategory.value = null
+}
 
 function selectCategory(cat) {
   selectedCategory.value = cat
@@ -149,7 +168,7 @@ async function submitBill() {
     alert('请输入金额')
     return
   }
-  if (!selectedCategory.value) {
+  if (!selectedCategory.value && billType.value !== 3) {
     alert('请选择分类')
     return
   }
@@ -166,7 +185,6 @@ async function submitBill() {
   try {
     const data = {
       account_id: selectedAccountId.value,
-      category_id: selectedCategory.value.id,
       type: billType.value,
       amount: amount,
       bill_date: billDate.value,
@@ -174,6 +192,8 @@ async function submitBill() {
     }
     if (billType.value === 3) {
       data.transfer_to_account_id = transferToAccountId.value
+    } else {
+      data.category_id = selectedCategory.value.id
     }
     await billStore.createBill(data)
     router.back()
@@ -201,6 +221,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background: var(--bg-primary);
   padding-bottom: 0;
 }
 
@@ -208,35 +229,64 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: 14px 20px;
 }
 
 .close-btn {
-  font-size: 20px;
+  font-size: 18px;
   color: #bbb;
   cursor: pointer;
+  width: 24px;
 }
 
 .record-title {
-  font-size: 19px;
-  font-weight: 800;
+  font-size: 17px;
+  font-weight: 700;
   color: var(--text-primary);
+}
+
+.tab-bar {
+  display: flex;
+  gap: 0;
+  padding: 0 20px;
+  margin-bottom: 16px;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-item.active {
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
 }
 
 .cat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  padding: 0 20px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px 4px;
+  padding: 0 16px;
+  margin-bottom: 12px;
 }
 
 .cat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
-  transition: transform 0.15s;
+  padding: 6px 2px;
+  border-radius: 10px;
+  transition: all 0.15s;
 }
 
 .cat-item:active {
@@ -244,40 +294,50 @@ onMounted(async () => {
 }
 
 .cat-item.active .cat-icon-box {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 2px 8px rgba(212, 165, 116, 0.25);
+}
+
+.cat-item.active .cat-name {
+  color: var(--accent-dark);
+  font-weight: 600;
 }
 
 .cat-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  transition: box-shadow 0.2s;
+  font-size: 22px;
+  transition: all 0.2s;
 }
 
 .cat-name {
   font-size: 11px;
-  color: #777;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
 }
 
 .form-section {
-  padding: 16px 20px 0;
+  padding: 4px 16px 0;
 }
 
 .form-row {
   display: flex;
   align-items: center;
-  padding: 10px 0;
+  padding: 10px 4px;
   border-bottom: 0.5px solid #f0ece5;
 }
 
 .form-row label {
-  width: 70px;
-  font-size: 14px;
-  color: #777;
+  width: 52px;
+  font-size: 13px;
+  color: #888;
   flex-shrink: 0;
 }
 
@@ -293,15 +353,16 @@ onMounted(async () => {
 
 .keypad-area {
   margin-top: auto;
-  padding: 12px 20px 24px;
+  padding: 8px 16px 28px;
+  background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.6) 15%);
 }
 
 .display-amount {
   text-align: center;
-  font-size: 42px;
+  font-size: 40px;
   font-weight: 300;
   color: var(--text-primary);
-  padding: 12px 0;
+  padding: 14px 0 16px;
   letter-spacing: -1px;
 }
 
@@ -312,34 +373,51 @@ onMounted(async () => {
 }
 
 .key-btn {
-  aspect-ratio: 1.3;
+  aspect-ratio: 1.35;
   border-radius: 14px;
-  background: var(--bg-input);
   font-size: 20px;
   font-weight: 500;
-  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.1s;
+  border: none;
+  cursor: pointer;
 }
 
 .key-btn:active {
-  transform: scale(0.94);
+  transform: scale(0.93);
+}
+
+.key-btn.num {
+  background: #faf8f3;
+  color: var(--text-primary);
+}
+
+.key-btn.num:active {
   background: #ede7dc;
 }
 
 .key-btn.op {
-  background: #efe8dd;
-  font-size: 16px;
-  color: #888;
+  background: #f2ebe0;
+  color: #999;
+  font-size: 15px;
+}
+
+.key-btn.op:active {
+  background: #e8dfd0;
 }
 
 .key-btn.confirm {
   background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
+  box-shadow: 0 3px 10px rgba(196, 148, 99, 0.35);
+}
+
+.key-btn.confirm:active {
+  box-shadow: 0 1px 4px rgba(196, 148, 99, 0.3);
 }
 
 .zero-btn {

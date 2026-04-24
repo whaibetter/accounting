@@ -91,11 +91,13 @@
         <div class="form-body">
           <div class="form-field">
             <label>提供商</label>
-            <select v-model="configForm.provider" class="form-input" @change="onProviderChange">
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="custom">自定义</option>
-            </select>
+            <CustomSelect
+              v-model="configForm.provider"
+              :options="providerOptions"
+              placeholder="选择提供商"
+              class="form-input"
+              @change="onProviderChange"
+            />
           </div>
           <div class="form-field">
             <label>API Key</label>
@@ -124,6 +126,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { llmApi } from '@/services'
+import CustomSelect from '@/components/CustomSelect.vue'
+
+const providerOptions = [
+  { label: 'OpenAI', value: 'openai' },
+  { label: 'Anthropic', value: 'anthropic' },
+  { label: '自定义', value: 'custom' },
+]
 
 const config = ref(null)
 const showConfigForm = ref(false)

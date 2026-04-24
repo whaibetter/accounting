@@ -8,10 +8,9 @@
       <span class="eye-btn" @click="toggleAmount">{{ showAmount ? '👁' : '👁‍🗨' }}</span>
     </div>
 
-    <div class="card" style="margin-top: 8px">
+    <div class="card summary-card">
       <div class="card-top-row">
         <span class="card-label">本月支出(元)</span>
-        <span class="eye-btn" @click="toggleAmount">{{ showAmount ? '👁' : '👁‍🗨' }}</span>
       </div>
       <div class="amount-row">
         <span class="amount-val">{{ showAmount ? formatMoneyWithSymbol(monthExpense) : '¥ ****' }}</span>
@@ -21,24 +20,31 @@
         <span>结余 {{ showAmount ? formatMoneyWithSymbol(monthBalance) : '****' }}</span>
       </div>
 
-      <div style="margin-top: 18px">
+      <div style="margin-top: 20px">
         <div class="section-title">本月支出占比</div>
-        <div class="donut-chart-wrap">
-          <div class="donut-chart-container">
-            <canvas ref="donutCanvas" width="130" height="130"></canvas>
-            <div class="donut-center">
-              <div class="donut-amount">{{ showAmount ? formatMoney(monthExpense) : '****' }}</div>
-              <div class="donut-label">总支出</div>
+        <template v-if="categoryStats.length > 0">
+          <div class="donut-chart-wrap">
+            <div class="donut-chart-container">
+              <canvas ref="donutCanvas"></canvas>
+              <div class="donut-center">
+                <div class="donut-amount">{{ showAmount ? formatMoney(monthExpense) : '****' }}</div>
+                <div class="donut-label">总支出</div>
+              </div>
+            </div>
+            <div class="legend-list">
+              <div v-for="(stat, idx) in categoryStats" :key="stat.category_id" class="legend-item">
+                <div class="legend-dot" :style="{ background: COLORS[idx % COLORS.length] }"></div>
+                <span class="legend-name">{{ stat.category_name }}</span>
+                <span class="legend-pct">{{ stat.percentage.toFixed(0) }}%</span>
+                <span class="legend-amt">{{ showAmount ? '¥' + formatMoney(stat.amount) : '****' }}</span>
+              </div>
             </div>
           </div>
-          <div class="legend-list">
-            <div v-for="(stat, idx) in categoryStats" :key="stat.category_id" class="legend-item">
-              <div class="legend-dot" :style="{ background: COLORS[idx % COLORS.length] }"></div>
-              <span class="legend-name">{{ stat.category_name }}</span>
-              <span class="legend-pct">{{ stat.percentage.toFixed(0) }}%</span>
-              <span class="legend-amt">{{ showAmount ? '¥' + formatMoney(stat.amount) : '****' }}</span>
-            </div>
-          </div>
+        </template>
+        <div class="chart-empty" v-else>
+          <span class="empty-icon">📊</span>
+          <span class="empty-text">暂无支出数据</span>
+          <span class="empty-hint">本月还没有支出记录</span>
         </div>
       </div>
     </div>
@@ -80,22 +86,31 @@ function renderDonut() {
   const data = categoryStats.value
   const colors = data.map((_, i) => COLORS[i % COLORS.length])
 
-  chartInstance = new Chart(donutCanvas.value, {
+  const ctx = donutCanvas.value.getContext('2d')
+  chartInstance = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: data.map(d => d.category_name),
       datasets: [{
         data: data.map(d => d.amount),
         backgroundColor: colors,
-        borderWidth: 0,
-        cutout: '72%',
+        borderWidth: 2,
+        borderColor: '#fff',
+        cutout: '70%',
+        hoverOffset: 4,
       }],
     },
     options: {
-      responsive: false,
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { enabled: false },
+        tooltip: {
+          enabled: true,
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ¥${formatMoney(ctx.parsed)}`
+          }
+        },
       },
       animation: { animateRotate: true, duration: 800 },
     },
@@ -118,8 +133,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.home-page {
+  padding-bottom: 20px;
+}
+
 .home-header {
-  padding: 16px 20px 8px;
+  padding: 18px 20px 12px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -134,20 +153,25 @@ onMounted(async () => {
 .home-date {
   font-size: 13px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .eye-btn {
-  font-size: 16px;
+  font-size: 17px;
   color: #c4b8a0;
   cursor: pointer;
+}
+
+.summary-card {
+  margin: 8px 16px;
+  padding: 20px;
 }
 
 .card-top-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .card-label {
@@ -158,12 +182,12 @@ onMounted(async () => {
 .amount-row {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 2px;
   margin-top: 4px;
 }
 
 .amount-val {
-  font-size: 38px;
+  font-size: 36px;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -1px;
@@ -172,9 +196,16 @@ onMounted(async () => {
 .sub-info {
   display: flex;
   gap: 16px;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 12px;
   color: var(--text-light);
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
 }
 
 .donut-chart-wrap {
@@ -190,6 +221,11 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
+.donut-chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .donut-center {
   position: absolute;
   top: 50%;
@@ -200,13 +236,13 @@ onMounted(async () => {
 }
 
 .donut-amount {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--text-primary);
 }
 
 .donut-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
@@ -214,7 +250,7 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
 }
 
 .legend-item {
@@ -225,8 +261,8 @@ onMounted(async () => {
 }
 
 .legend-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -239,10 +275,39 @@ onMounted(async () => {
 .legend-pct {
   font-weight: 700;
   color: #444;
+  min-width: 28px;
+  text-align: right;
 }
 
 .legend-amt {
   color: #999;
   font-size: 11px;
+  min-width: 56px;
+  text-align: right;
+}
+
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.chart-empty .empty-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.chart-empty .empty-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.chart-empty .empty-hint {
+  font-size: 12px;
+  margin-top: 4px;
 }
 </style>

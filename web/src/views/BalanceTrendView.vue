@@ -1,7 +1,9 @@
-﻿<template>
-  <div class="page balance-trend">
+<template>
+  <div class="page balance-trend-page">
     <div class="page-header">
-      <h1>余额趋势</h1>
+      <span class="back-btn" @click="$router.back()">‹</span>
+      <span class="page-title">余额趋势</span>
+      <span class="export-btn" @click="handleExport">📤</span>
     </div>
 
     <div class="filter-section">
@@ -19,14 +21,12 @@
         </div>
       </div>
       <div class="filter-row">
-        <select v-model="selectedAccountType" class="filter-select">
-          <option :value="0">全部类型</option>
-          <option v-for="at in accountTypes" :key="at.value" :value="at.value">{{ at.label }}</option>
-        </select>
-        <select v-model="selectedAccountId" class="filter-select">
-          <option :value="0">全部账户</option>
-          <option v-for="acc in filteredAccounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-        </select>
+        <CustomSelect
+          v-model="selectedAccountId"
+          :options="accountFilterOptions"
+          placeholder="全部账户"
+          class="filter-select"
+        />
         <button class="chart-toggle" @click="chartType = chartType === 'line' ? 'bar' : 'line'">
           {{ chartType === 'line' ? '📈 折线' : '📊 柱状' }}
         </button>
@@ -34,9 +34,13 @@
     </div>
 
     <div class="summary-row" v-if="balanceData.length">
-      <div class="summary-card card" v-for="acc in balanceData" :key="acc.account_id"
-           @click="selectedAccountId = acc.account_id"
-           :class="{ selected: selectedAccountId === acc.account_id }">
+      <div
+        class="summary-card card"
+        v-for="acc in balanceData"
+        :key="acc.account_id"
+        @click="selectedAccountId = acc.account_id"
+        :class="{ selected: selectedAccountId === acc.account_id }"
+      >
         <div class="summary-dot" :style="{ background: acc.color }"></div>
         <div class="summary-info">
           <span class="summary-name">{{ acc.account_name }}</span>
@@ -48,11 +52,11 @@
       </div>
     </div>
 
-    <div class="chart-container card" v-if="balanceData.length">
-      <v-chart :option="chartOption" autoresize style="height: 320px" />
+    <div class="card chart-card" v-if="balanceData.length">
+      <canvas ref="mainChartCanvas"></canvas>
     </div>
 
-    <div class="empty-state" v-else-if="!loading">
+    <div class="chart-empty card" v-else-if="!loading">
       <span class="empty-icon">📊</span>
       <span class="empty-text">暂无数据</span>
       <span class="empty-hint">请先添加账户和账单记录</span>
@@ -62,23 +66,23 @@
       <div class="section-title">
         <span>{{ selectedDetail.account_name }} - 收支明细</span>
       </div>
-      <div class="detail-chart card">
-        <v-chart :option="detailChartOption" autoresize style="height: 220px" />
+      <div class="card detail-chart-card">
+        <canvas ref="detailChartCanvas"></canvas>
       </div>
       <div class="detail-stats">
-        <div class="stat-item">
+        <div class="stat-item card">
           <span class="stat-label">期初余额</span>
           <span class="stat-value">¥{{ formatMoney(selectedDetail.data[0]?.balance ?? 0) }}</span>
         </div>
-        <div class="stat-item">
+        <div class="stat-item card">
           <span class="stat-label">期末余额</span>
           <span class="stat-value">¥{{ formatMoney(selectedDetail.data[selectedDetail.data.length - 1]?.balance ?? 0) }}</span>
         </div>
-        <div class="stat-item">
+        <div class="stat-item card">
           <span class="stat-label">总收入</span>
           <span class="stat-value income">¥{{ formatMoney(totalIncome) }}</span>
         </div>
-        <div class="stat-item">
+        <div class="stat-item card">
           <span class="stat-label">总支出</span>
           <span class="stat-value expense">¥{{ formatMoney(totalExpense) }}</span>
         </div>
@@ -87,24 +91,28 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import VChart from 'vue-echarts'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart, BarChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent } from 'echarts/components'
-import { statisticsApi, accountApi, type Account, type AccountBalanceTrend } from '@/api/types'
+<script setup>
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { statisticsApi, accountApi } from '@/services'
+import Chart from 'chart.js/auto'
+import dayjs from 'dayjs'
+import CustomSelect from '@/components/CustomSelect.vue'
 
-use([CanvasRenderer, LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent])
-
-const accounts = ref<Account[]>([])
-const balanceData = ref<AccountBalanceTrend[]>([])
+const accounts = ref([])
+const balanceData = ref([])
 const selectedAccountId = ref(0)
-const selectedAccountType = ref(0)
 const timeRange = ref('1m')
-const chartType = ref<'line' | 'bar'>('line')
+const chartType = ref('line')
 const loading = ref(false)
+const mainChartCanvas = ref(null)
+const detailChartCanvas = ref(null)
+let mainChart = null
+let detailChart = null
+
+const accountFilterOptions = computed(() => [
+  { label: '全部账户', value: 0 },
+  ...accounts.value.map(acc => ({ label: acc.name, value: acc.id })),
+])
 
 const timeFilters = [
   { label: '1周', value: '1w' },
@@ -114,20 +122,6 @@ const timeFilters = [
   { label: '1年', value: '1y' },
   { label: '2年', value: '2y' },
 ]
-
-const accountTypes = [
-  { label: '现金', value: 1 },
-  { label: '银行卡', value: 2 },
-  { label: '信用卡', value: 3 },
-  { label: '支付宝', value: 4 },
-  { label: '微信', value: 5 },
-  { label: '其他', value: 6 },
-]
-
-const filteredAccounts = computed(() => {
-  if (selectedAccountType.value === 0) return accounts.value
-  return accounts.value.filter(a => a.type === selectedAccountType.value)
-})
 
 const selectedDetail = computed(() => {
   if (selectedAccountId.value > 0) {
@@ -146,72 +140,50 @@ const totalExpense = computed(() => {
   return selectedDetail.value.data.reduce((sum, d) => sum + d.expense, 0)
 })
 
-function formatMoney(n: number) {
-  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function formatMoney(n) {
+  return Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function getDateRange() {
-  const end = new Date()
-  let start = new Date()
-
+  const end = dayjs()
+  let start = dayjs()
   switch (timeRange.value) {
-    case '1w': start.setDate(start.getDate() - 7); break
-    case '1m': start.setMonth(start.getMonth() - 1); break
-    case '3m': start.setMonth(start.getMonth() - 3); break
-    case '6m': start.setMonth(start.getMonth() - 6); break
-    case '1y': start.setFullYear(start.getFullYear() - 1); break
-    case '2y': start.setFullYear(start.getFullYear() - 2); break
+    case '1w': start = start.subtract(7, 'day'); break
+    case '1m': start = start.subtract(1, 'month'); break
+    case '3m': start = start.subtract(3, 'month'); break
+    case '6m': start = start.subtract(6, 'month'); break
+    case '1y': start = start.subtract(1, 'year'); break
+    case '2y': start = start.subtract(2, 'year'); break
   }
-
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0]
+    start_date: start.format('YYYY-MM-DD'),
+    end_date: end.format('YYYY-MM-DD'),
   }
 }
 
-function getChartColors() {
-  const style = getComputedStyle(document.documentElement)
-  return {
-    bg: style.getPropertyValue('--chart-bg').trim() || '#1a1a24',
-    border: style.getPropertyValue('--chart-border').trim() || '#2a2a3a',
-    text: style.getPropertyValue('--chart-text').trim() || '#e8e8ed',
-    textSec: style.getPropertyValue('--chart-text-secondary').trim() || '#8888a0',
-    axis: style.getPropertyValue('--chart-axis').trim() || '#2a2a3a',
-    split: style.getPropertyValue('--chart-split').trim() || '#1e1e2e',
-  }
-}
+function renderMainChart() {
+  if (!mainChartCanvas.value || !balanceData.value.length) return
+  if (mainChart) mainChart.destroy()
 
-const chartOption = computed(() => {
-  const c = getChartColors()
   const isLine = chartType.value === 'line'
-
-  const series = balanceData.value.map((account) => {
-    const base: any = {
-      name: account.account_name,
-      type: isLine ? 'line' : 'bar',
+  const datasets = balanceData.value.map((account) => {
+    const base = {
+      label: account.account_name,
       data: account.data.map(d => d.balance),
-      smooth: isLine,
     }
-
     if (isLine) {
-      base.lineStyle = { color: account.color, width: 2 }
-      base.itemStyle = { color: account.color }
-      base.areaStyle = {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: account.color + '20' },
-            { offset: 1, color: account.color + '00' }
-          ]
-        }
-      }
-      base.showSymbol = account.data.length < 60
+      base.borderColor = account.color
+      base.backgroundColor = account.color + '18'
+      base.borderWidth = 2
+      base.fill = true
+      base.tension = 0.4
+      base.pointRadius = account.data.length < 60 ? 2 : 0
+      base.pointHoverRadius = 4
     } else {
-      base.itemStyle = { color: account.color + 'cc', borderRadius: [2, 2, 0, 0] }
-      base.barMaxWidth = 20
+      base.backgroundColor = account.color + 'aa'
+      base.borderRadius = 3
+      base.barMaxWidth = 16
     }
-
     return base
   })
 
@@ -222,136 +194,108 @@ const chartOption = computed(() => {
 
   const labelInterval = Math.max(Math.floor(dates.length / 7), 0)
 
-  return {
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: c.bg,
-      borderColor: c.border,
-      textStyle: { color: c.text, fontSize: 12 },
-      formatter: (params: any) => {
-        const dateStr = balanceData.value[0]?.data[params[0].dataIndex]?.date || params[0].axisValue
-        let html = `<div style="font-weight:600;margin-bottom:8px">${dateStr}</div>`
-        params.forEach((p: any) => {
-          html += `<div style="display:flex;justify-content:space-between;gap:20px">
-            <span>${p.marker} ${p.seriesName}</span>
-            <span style="font-weight:600">¥${formatMoney(p.value)}</span>
-          </div>`
-        })
-        return html
-      }
-    },
-    legend: {
-      data: balanceData.value.map(a => a.account_name),
-      textStyle: { color: c.textSec, fontSize: 11 },
-      top: 0,
-      right: 0,
-    },
-    grid: { left: 56, right: 16, top: 40, bottom: 24 },
-    xAxis: {
-      type: 'category',
-      data: dates,
-      axisLine: { lineStyle: { color: c.axis } },
-      axisLabel: { color: c.textSec, fontSize: 10, interval: labelInterval },
-    },
-    yAxis: {
-      type: 'value',
-      splitLine: { lineStyle: { color: c.split } },
-      axisLabel: {
-        color: c.textSec,
-        fontSize: 11,
-        formatter: (v: number) => {
-          if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + 'w'
-          if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k'
-          return v.toFixed(0)
-        }
+  mainChart = new Chart(mainChartCanvas.value, {
+    type: isLine ? 'line' : 'bar',
+    data: { labels: dates, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: balanceData.value.length > 1, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ¥${formatMoney(ctx.parsed.y)}`
+          }
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 }, color: '#999', maxTicksLimit: 8, interval: labelInterval },
+        },
+        y: {
+          grid: { color: '#f0f0f0' },
+          ticks: {
+            font: { size: 10 }, color: '#999',
+            callback: (v) => {
+              if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + 'w'
+              if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k'
+              return v.toFixed(0)
+            }
+          },
+        },
       },
     },
-    dataZoom: dates.length > 30 ? [{
-      type: 'inside',
-      start: Math.max(0, 100 - (30 / dates.length) * 100),
-      end: 100,
-    }] : [],
-    series
-  }
-})
+  })
+}
 
-const detailChartOption = computed(() => {
-  if (!selectedDetail.value) return {}
-  const c = getChartColors()
+function renderDetailChart() {
+  if (!detailChartCanvas.value || !selectedDetail.value) return
+  if (detailChart) detailChart.destroy()
+
   const d = selectedDetail.value
   const dates = d.data.map(item => {
     if (timeRange.value === '1w' || timeRange.value === '1m') return item.date.slice(5)
     return item.date.slice(2)
   })
-  const labelInterval = Math.max(Math.floor(dates.length / 7), 0)
 
-  return {
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: c.bg,
-      borderColor: c.border,
-      textStyle: { color: c.text, fontSize: 12 },
-      formatter: (params: any) => {
-        const dateStr = d.data[params[0].dataIndex]?.date || params[0].axisValue
-        let html = `<div style="font-weight:600;margin-bottom:8px">${dateStr}</div>`
-        params.forEach((p: any) => {
-          html += `<div style="display:flex;justify-content:space-between;gap:20px">
-            <span>${p.marker} ${p.seriesName}</span>
-            <span style="font-weight:600">¥${formatMoney(p.value)}</span>
-          </div>`
-        })
-        return html
-      }
-    },
-    legend: {
-      data: ['收入', '支出'],
-      textStyle: { color: c.textSec, fontSize: 11 },
-      top: 0,
-      right: 0,
-    },
-    grid: { left: 48, right: 16, top: 36, bottom: 20 },
-    xAxis: {
-      type: 'category',
-      data: dates,
-      axisLine: { lineStyle: { color: c.axis } },
-      axisLabel: { color: c.textSec, fontSize: 10, interval: labelInterval },
-    },
-    yAxis: {
-      type: 'value',
-      splitLine: { lineStyle: { color: c.split } },
-      axisLabel: {
-        color: c.textSec,
-        fontSize: 11,
-        formatter: (v: number) => {
-          if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + 'w'
-          if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k'
-          return v.toFixed(0)
+  detailChart = new Chart(detailChartCanvas.value, {
+    type: 'bar',
+    data: {
+      labels: dates,
+      datasets: [
+        {
+          label: '收入',
+          data: d.data.map(item => item.income),
+          backgroundColor: '#34d399aa',
+          borderRadius: 3,
+          barMaxWidth: 14,
+        },
+        {
+          label: '支出',
+          data: d.data.map(item => item.expense),
+          backgroundColor: '#f87171aa',
+          borderRadius: 3,
+          barMaxWidth: 14,
         }
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ¥${formatMoney(ctx.parsed.y)}`
+          }
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#999', maxTicksLimit: 8 } },
+        y: {
+          grid: { color: '#f0f0f0' },
+          ticks: {
+            font: { size: 10 }, color: '#999',
+            callback: (v) => {
+              if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + 'w'
+              if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k'
+              return v.toFixed(0)
+            }
+          },
+        },
       },
     },
-    series: [
-      {
-        name: '收入',
-        type: 'bar',
-        data: d.data.map(item => item.income),
-        itemStyle: { color: '#34d399cc', borderRadius: [2, 2, 0, 0] },
-        barMaxWidth: 16,
-      },
-      {
-        name: '支出',
-        type: 'bar',
-        data: d.data.map(item => item.expense),
-        itemStyle: { color: '#f87171cc', borderRadius: [2, 2, 0, 0] },
-        barMaxWidth: 16,
-      }
-    ]
-  }
-})
+  })
+}
 
 async function loadAccounts() {
   try {
     const res = await accountApi.list()
-    accounts.value = res.data || []
+    if (res.data.code === 200) {
+      accounts.value = res.data.data
+    }
   } catch (e) {
     console.error(e)
   }
@@ -359,28 +303,51 @@ async function loadAccounts() {
 
 async function loadBalanceData() {
   loading.value = true
-  const { start, end } = getDateRange()
+  const { start_date, end_date } = getDateRange()
 
   try {
-    const params: any = { start_date: start, end_date: end }
+    const params = { start_date, end_date }
     if (selectedAccountId.value > 0) {
       params.account_id = selectedAccountId.value
     }
-    if (selectedAccountType.value > 0) {
-      params.account_type = selectedAccountType.value
-    }
 
     const res = await statisticsApi.balanceTrend(params)
-    balanceData.value = res.data || []
+    if (res.data.code === 200) {
+      balanceData.value = res.data.data || []
+    }
   } catch (e) {
     console.error(e)
     balanceData.value = []
   } finally {
     loading.value = false
   }
+
+  nextTick(() => {
+    renderMainChart()
+    renderDetailChart()
+  })
 }
 
-watch([timeRange, selectedAccountId, selectedAccountType], loadBalanceData)
+function handleExport() {
+  if (!balanceData.value.length) return
+
+  let csv = '\uFEFF日期,账户,余额,收入,支出\n'
+  for (const acc of balanceData.value) {
+    for (const d of acc.data) {
+      csv += `${d.date},${acc.account_name},${d.balance},${d.income},${d.expense}\n`
+    }
+  }
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `余额趋势_${dayjs().format('YYYYMMDD')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+watch([timeRange, selectedAccountId], loadBalanceData)
 
 onMounted(async () => {
   await loadAccounts()
@@ -389,8 +356,22 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.back-btn {
+  font-size: 22px;
+  color: var(--text-primary);
+  cursor: pointer;
+  width: 24px;
+}
+
+.export-btn {
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+}
+
 .filter-section {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  padding: 0 16px;
 }
 
 .filter-row {
@@ -413,14 +394,16 @@ onMounted(async () => {
   font-size: 12px;
   background: var(--bg-card);
   color: var(--text-secondary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, #eee);
   white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
 .filter-btn.active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
 }
 
 .filter-select {
@@ -428,8 +411,8 @@ onMounted(async () => {
   border-radius: 8px;
   font-size: 13px;
   background: var(--bg-card);
-  color: var(--text);
-  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border: 1px solid var(--border, #eee);
   flex: 1;
   min-width: 0;
 }
@@ -440,15 +423,16 @@ onMounted(async () => {
   font-size: 12px;
   background: var(--bg-card);
   color: var(--text-secondary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, #eee);
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .summary-row {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  margin-bottom: 16px;
+  margin: 0 16px 12px;
   padding-bottom: 4px;
 }
 
@@ -463,8 +447,8 @@ onMounted(async () => {
 }
 
 .summary-card.selected {
-  border-color: var(--primary);
-  background: var(--primary-bg, rgba(99, 102, 241, 0.1));
+  border-color: var(--accent);
+  background: rgba(212, 165, 116, 0.08);
 }
 
 .summary-dot {
@@ -483,6 +467,7 @@ onMounted(async () => {
 .summary-name {
   font-size: 13px;
   font-weight: 500;
+  color: var(--text-primary);
 }
 
 .summary-type {
@@ -495,54 +480,60 @@ onMounted(async () => {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   margin-left: 8px;
+  color: var(--text-primary);
 }
 
 .summary-balance.negative {
-  color: var(--expense);
+  color: #f87171;
 }
 
-.chart-container {
+.chart-card {
   padding: 16px;
-  margin-bottom: 20px;
+  margin: 0 16px 16px;
+  height: 300px;
 }
 
-.empty-state {
+.chart-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
+  margin: 0 16px;
   color: var(--text-muted);
 }
 
-.empty-icon {
+.chart-empty .empty-icon {
   font-size: 48px;
   margin-bottom: 12px;
 }
 
-.empty-text {
+.chart-empty .empty-text {
   font-size: 14px;
-  margin-bottom: 4px;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
-.empty-hint {
+.chart-empty .empty-hint {
   font-size: 12px;
-  color: var(--text-muted);
+  margin-top: 4px;
 }
 
 .detail-section {
-  margin-top: 8px;
+  margin: 0 16px 90px;
 }
 
 .section-title {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 12px;
+  color: var(--text-primary);
 }
 
-.detail-chart {
+.detail-chart-card {
   padding: 16px;
   margin-bottom: 12px;
+  height: 220px;
 }
 
 .detail-stats {
@@ -552,31 +543,28 @@ onMounted(async () => {
 }
 
 .stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   padding: 12px;
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px solid var(--border);
 }
 
 .stat-label {
+  display: block;
   font-size: 11px;
   color: var(--text-muted);
+  margin-bottom: 4px;
 }
 
 .stat-value {
   font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
 
 .stat-value.income {
-  color: var(--income);
+  color: #34d399;
 }
 
 .stat-value.expense {
-  color: var(--expense);
+  color: #f87171;
 }
 </style>
