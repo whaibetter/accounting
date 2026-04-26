@@ -21,7 +21,7 @@
         @click="selectCategory(cat)"
       >
         <div class="cat-icon-box" :style="{ background: catBgColors[cat.id % catBgColors.length] }">
-          {{ cat.icon || '📝' }}
+          {{ getCatIcon(cat.icon) }}
         </div>
         <span class="cat-name">{{ cat.name }}</span>
       </div>
@@ -60,22 +60,22 @@
       <div class="display-amount">¥ {{ displayAmount }}</div>
       <div class="keypad-grid">
         <button class="key-btn op" @click="clearAmount">清空</button>
-        <button class="key-btn num" @click="inputKey('1')">1</button>
-        <button class="key-btn num" @click="inputKey('2')">2</button>
-        <button class="key-btn num" @click="inputKey('3')">3</button>
-        <button class="key-btn op" @click="backspace">⌫</button>
-
-        <button class="key-btn num" @click="inputKey('4')">4</button>
-        <button class="key-btn num" @click="inputKey('5')">5</button>
-        <button class="key-btn num" @click="inputKey('6')">6</button>
-        <button class="key-btn op" @click="toggleSign">±</button>
-
         <button class="key-btn num" @click="inputKey('7')">7</button>
         <button class="key-btn num" @click="inputKey('8')">8</button>
         <button class="key-btn num" @click="inputKey('9')">9</button>
-        <button class="key-btn op" @click="inputDot">.</button>
 
-        <button class="key-btn num zero-btn" @click="inputKey('0')">0</button>
+        <button class="key-btn op" @click="backspace">⌫</button>
+        <button class="key-btn num" @click="inputKey('4')">4</button>
+        <button class="key-btn num" @click="inputKey('5')">5</button>
+        <button class="key-btn num" @click="inputKey('6')">6</button>
+
+        <button class="key-btn op" @click="toggleSign">±</button>
+        <button class="key-btn num" @click="inputKey('1')">1</button>
+        <button class="key-btn num" @click="inputKey('2')">2</button>
+        <button class="key-btn num" @click="inputKey('3')">3</button>
+
+        <button class="key-btn op" @click="inputDot">.</button>
+        <button class="key-btn num" @click="inputKey('0')">0</button>
         <button class="key-btn confirm" @click="submitBill">✓</button>
       </div>
     </div>
@@ -88,6 +88,7 @@ import { useRouter } from 'vue-router'
 import { useBillStore, useAccountStore, useCategoryStore } from '@/stores/data'
 import CustomSelect from '@/components/CustomSelect.vue'
 import dayjs from 'dayjs'
+import { getCategoryIcon } from '@/utils/format'
 
 const router = useRouter()
 const billStore = useBillStore()
@@ -105,6 +106,10 @@ const remark = ref('')
 const submitting = ref(false)
 
 const catBgColors = ['#fef6ee', '#fef0e6', '#eef6fc', '#fceef6', '#f5f0ee', '#eff6ee', '#f0f0f4', '#f6f0ee', '#eeeef6', '#eefef6']
+
+function getCatIcon(icon) {
+  return getCategoryIcon(icon)
+}
 
 const accounts = computed(() => accountStore.accounts.filter(a => a.status === 1))
 
@@ -220,9 +225,10 @@ onMounted(async () => {
 .record-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100%;
   background: var(--bg-primary);
   padding-bottom: 0;
+  padding-bottom: var(--safe-bottom);
 }
 
 .record-header {
@@ -373,8 +379,8 @@ onMounted(async () => {
 }
 
 .key-btn {
-  aspect-ratio: 1.35;
-  border-radius: 14px;
+  height: 48px;
+  border-radius: 12px;
   font-size: 20px;
   font-weight: 500;
   display: flex;
@@ -418,9 +424,5 @@ onMounted(async () => {
 
 .key-btn.confirm:active {
   box-shadow: 0 1px 4px rgba(196, 148, 99, 0.3);
-}
-
-.zero-btn {
-  grid-column: span 2;
 }
 </style>

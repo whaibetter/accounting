@@ -29,6 +29,27 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
+class SystemConfig(Base):
+    """
+    系统配置模型。
+
+    存储系统级配置信息，如密码哈希、JWT密钥等。
+    采用键值对结构，支持灵活扩展。
+
+    Attributes:
+        id: 主键，自增
+        key: 配置键名（唯一）
+        value: 配置值
+        updated_at: 更新时间
+    """
+    __tablename__ = "system_config"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String(100), nullable=False, unique=True)
+    value = Column(String(500), nullable=False, default="")
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+
 class Account(Base):
     """
     资金账户模型。

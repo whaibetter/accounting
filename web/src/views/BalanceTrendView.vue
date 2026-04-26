@@ -27,26 +27,28 @@
           placeholder="全部账户"
           class="filter-select"
         />
-        <button class="chart-toggle" @click="chartType = chartType === 'line' ? 'bar' : 'line'">
+        <button class="chart-toggle" :class="{ active: chartType === 'bar' }" @click="toggleChartType">
           {{ chartType === 'line' ? '📈 折线' : '📊 柱状' }}
         </button>
       </div>
     </div>
 
-    <div class="summary-row" v-if="balanceData.length">
+    <div class="account-list" v-if="balanceData.length">
       <div
-        class="summary-card card"
+        class="account-item"
         v-for="acc in balanceData"
         :key="acc.account_id"
         @click="selectedAccountId = acc.account_id"
         :class="{ selected: selectedAccountId === acc.account_id }"
       >
-        <div class="summary-dot" :style="{ background: acc.color }"></div>
-        <div class="summary-info">
-          <span class="summary-name">{{ acc.account_name }}</span>
-          <span class="summary-type">{{ acc.account_type_name }}</span>
+        <div class="ai-left">
+          <div class="ai-dot" :style="{ background: acc.color }"></div>
+          <div class="ai-info">
+            <span class="ai-name">{{ acc.account_name }}</span>
+            <span class="ai-type">{{ acc.account_type_name }}</span>
+          </div>
         </div>
-        <span class="summary-balance" :class="{ negative: acc.current_balance < 0 }">
+        <span class="ai-balance" :class="{ negative: acc.current_balance < 0 }">
           ¥{{ formatMoney(acc.current_balance) }}
         </span>
       </div>
@@ -94,9 +96,12 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { statisticsApi, accountApi } from '@/services'
+import { useThemeStore, getThemeColor } from '@/stores/theme'
 import Chart from 'chart.js/auto'
 import dayjs from 'dayjs'
 import CustomSelect from '@/components/CustomSelect.vue'
+
+const themeStore = useThemeStore()
 
 const accounts = ref([])
 const balanceData = ref([])
@@ -144,6 +149,13 @@ function formatMoney(n) {
   return Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function toggleChartType() {
+  chartType.value = chartType.value === 'line' ? 'bar' : 'line'
+  nextTick(() => {
+    renderMainChart()
+  })
+}
+
 function getDateRange() {
   const end = dayjs()
   let start = dayjs()
@@ -166,6 +178,8 @@ function renderMainChart() {
   if (mainChart) mainChart.destroy()
 
   const isLine = chartType.value === 'line'
+  const textColor = getThemeColor('--text-muted') || '#999'
+  const gridColor = getThemeColor('--border') || '#f0f0f0'
   const datasets = balanceData.value.map((account) => {
     const base = {
       label: account.account_name,
@@ -202,8 +216,13 @@ function renderMainChart() {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: balanceData.value.length > 1, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+        legend: { display: balanceData.value.length > 1, position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: textColor } },
         tooltip: {
+          backgroundColor: getThemeColor('--bg-card') || '#fff',
+          titleColor: getThemeColor('--text-primary') || '#333',
+          bodyColor: getThemeColor('--text-secondary') || '#666',
+          borderColor: getThemeColor('--border') || '#eee',
+          borderWidth: 1,
           callbacks: {
             label: (ctx) => `${ctx.dataset.label}: ¥${formatMoney(ctx.parsed.y)}`
           }
@@ -212,12 +231,12 @@ function renderMainChart() {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { font: { size: 10 }, color: '#999', maxTicksLimit: 8, interval: labelInterval },
+          ticks: { font: { size: 10 }, color: textColor, maxTicksLimit: 8, interval: labelInterval },
         },
         y: {
-          grid: { color: '#f0f0f0' },
+          grid: { color: gridColor },
           ticks: {
-            font: { size: 10 }, color: '#999',
+            font: { size: 10 }, color: textColor,
             callback: (v) => {
               if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + 'w'
               if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k'
@@ -239,6 +258,8 @@ function renderDetailChart() {
     if (timeRange.value === '1w' || timeRange.value === '1m') return item.date.slice(5)
     return item.date.slice(2)
   })
+  const textColor = getThemeColor('--text-muted') || '#999'
+  const gridColor = getThemeColor('--border') || '#f0f0f0'
 
   detailChart = new Chart(detailChartCanvas.value, {
     type: 'bar',
@@ -248,14 +269,14 @@ function renderDetailChart() {
         {
           label: '收入',
           data: d.data.map(item => item.income),
-          backgroundColor: '#34d399aa',
+          backgroundColor: getThemeColor('--success') + 'aa' || '#34d399aa',
           borderRadius: 3,
           barMaxWidth: 14,
         },
         {
           label: '支出',
           data: d.data.map(item => item.expense),
-          backgroundColor: '#f87171aa',
+          backgroundColor: getThemeColor('--danger') + 'aa' || '#f87171aa',
           borderRadius: 3,
           barMaxWidth: 14,
         }
@@ -265,19 +286,24 @@ function renderDetailChart() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: textColor } },
         tooltip: {
+          backgroundColor: getThemeColor('--bg-card') || '#fff',
+          titleColor: getThemeColor('--text-primary') || '#333',
+          bodyColor: getThemeColor('--text-secondary') || '#666',
+          borderColor: getThemeColor('--border') || '#eee',
+          borderWidth: 1,
           callbacks: {
             label: (ctx) => `${ctx.dataset.label}: ¥${formatMoney(ctx.parsed.y)}`
           }
         },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#999', maxTicksLimit: 8 } },
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: textColor, maxTicksLimit: 8 } },
         y: {
-          grid: { color: '#f0f0f0' },
+          grid: { color: gridColor },
           ticks: {
-            font: { size: 10 }, color: '#999',
+            font: { size: 10 }, color: textColor,
             callback: (v) => {
               if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + 'w'
               if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k'
@@ -349,6 +375,13 @@ function handleExport() {
 
 watch([timeRange, selectedAccountId], loadBalanceData)
 
+watch(() => themeStore.themeVersion, () => {
+  nextTick(() => {
+    renderMainChart()
+    renderDetailChart()
+  })
+})
+
 onMounted(async () => {
   await loadAccounts()
   await loadBalanceData()
@@ -386,6 +419,11 @@ onMounted(async () => {
   gap: 6px;
   flex: 1;
   overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.time-filter::-webkit-scrollbar {
+  display: none;
 }
 
 .filter-btn {
@@ -426,64 +464,77 @@ onMounted(async () => {
   border: 1px solid var(--border, #eee);
   white-space: nowrap;
   cursor: pointer;
-}
-
-.summary-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  margin: 0 16px 12px;
-  padding-bottom: 4px;
-}
-
-.summary-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  min-width: fit-content;
-  cursor: pointer;
   transition: all 0.2s;
 }
 
-.summary-card.selected {
+.chart-toggle.active {
+  background: var(--accent);
+  color: white;
   border-color: var(--accent);
-  background: rgba(212, 165, 116, 0.08);
 }
 
-.summary-dot {
-  width: 8px;
-  height: 8px;
+.account-list {
+  margin: 0 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow);
+}
+
+.account-item.selected {
+  background: rgba(212, 165, 116, 0.08);
+  border: 1.5px solid var(--accent);
+}
+
+.ai-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.summary-info {
+.ai-info {
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
-.summary-name {
-  font-size: 13px;
-  font-weight: 500;
+.ai-name {
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.summary-type {
-  font-size: 10px;
+.ai-type {
+  font-size: 11px;
   color: var(--text-muted);
 }
 
-.summary-balance {
-  font-size: 14px;
+.ai-balance {
+  font-size: 15px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  margin-left: 8px;
   color: var(--text-primary);
 }
 
-.summary-balance.negative {
+.ai-balance.negative {
   color: #f87171;
 }
 

@@ -232,6 +232,9 @@ def update_category(db: Session, category_id: int, **kwargs) -> Optional[Categor
     """
     更新分类信息。
 
+    支持修改分类名称、图标和父分类（转移子分类）。
+    转移时自动继承新父分类的类型。
+
     Args:
         db: 数据库会话
         category_id: 分类ID
@@ -239,47 +242,72 @@ def update_category(db: Session, category_id: int, **kwargs) -> Optional[Categor
 
     Returns:
         Category | None: 更新后的分类对象
+
+    Raises:
+        ValueError: 父分类不存在或循环引用时
     """
     category = get_category(db, category_id)
     if not category:
         return None
 
+    if "parent_id" in kwargs:
+        new_parent_id = kwargs["parent_id"]
+        if new_parent_id is not None:
+            if new_parent_id == category_id:
+                raise ValueError("不能将分类设为自身的子分类")
+            child_ids = [c.id for c in db.query(Category).filter(Category.parent_id == category_id).all()]
+            if new_parent_id in child_ids:
+                raise ValueError("不能将分类转移到其子分类下")
+            parent = get_category(db, new_parent_id)
+            if not parent:
+                raise ValueError("父分类不存在")
+            category.type = parent.type
+
     for key, value in kwargs.items():
-        if value is not None:
-            setattr(category, key, value)
+        setattr(category, key, value)
 
     db.commit()
     db.refresh(category)
     return category
 
 
-def delete_category(db: Session, category_id: int) -> bool:
+def delete_category(db: Session, category_id: int, cascade: bool = False) -> bool:
     """
     删除分类。
 
-    如果分类下存在子分类或账单记录，则不允许删除。
+    默认情况下，如果分类下存在子分类或账单记录，则不允许删除。
+    当cascade=True时，将级联删除所有子分类（子分类下的账单记录仍会阻止删除）。
 
     Args:
         db: 数据库会话
         category_id: 分类ID
+        cascade: 是否级联删除子分类
 
     Returns:
         bool: 是否删除成功
 
     Raises:
-        ValueError: 存在子分类或关联账单时
+        ValueError: 存在子分类且cascade=False，或存在关联账单时
     """
     category = get_category(db, category_id)
     if not category:
         return False
 
     child_count = db.query(Category).filter(Category.parent_id == category_id).count()
-    if child_count > 0:
-        raise ValueError("该分类下存在子分类，无法删除")
+    if child_count > 0 and not cascade:
+        raise ValueError("该分类下存在子分类，无法删除。请先删除或转移子分类，或使用级联删除。")
 
     bill_count = db.query(Bill).filter(Bill.category_id == category_id).count()
     if bill_count > 0:
         raise ValueError("该分类下存在账单记录，无法删除")
+
+    if cascade and child_count > 0:
+        children = db.query(Category).filter(Category.parent_id == category_id).all()
+        for child in children:
+            child_bill_count = db.query(Bill).filter(Bill.category_id == child.id).count()
+            if child_bill_count > 0:
+                raise ValueError(f"子分类「{child.name}」下存在账单记录，无法级联删除")
+            db.delete(child)
 
     db.delete(category)
     db.commit()

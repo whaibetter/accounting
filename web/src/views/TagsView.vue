@@ -16,7 +16,7 @@
         <span class="tag-name">{{ tag.name }}</span>
         <div class="tag-actions">
           <button class="action-btn edit" @click="editTag(tag)">编辑</button>
-          <button class="action-btn delete" @click="deleteTag(tag.id)">删除</button>
+          <button class="action-btn delete" @click="handleDeleteTag(tag)">删除</button>
         </div>
       </div>
     </div>
@@ -50,14 +50,24 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      ref="confirmDialog"
+      icon="🗑️"
+      title="确定要删除此标签吗？"
+      description="此操作不可撤销，删除后标签数据将永久丢失。"
+      confirmText="确认删除"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTagStore } from '@/stores/data'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const tagStore = useTagStore()
+const confirmDialog = ref(null)
 
 const showAddForm = ref(false)
 const editingTag = ref(null)
@@ -95,10 +105,11 @@ async function saveTag() {
   }
 }
 
-async function deleteTag(id) {
-  if (!confirm('确定删除此标签？')) return
+async function handleDeleteTag(tag) {
+  const confirmed = await confirmDialog.value.show()
+  if (!confirmed) return
   try {
-    await tagStore.deleteTag(id)
+    await tagStore.deleteTag(tag.id)
     tagStore.fetchTags()
   } catch (e) {
     alert(e.response?.data?.detail || '删除失败')
@@ -127,7 +138,11 @@ onMounted(() => tagStore.fetchTags())
   align-items: center;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 0.5px solid #f0ece5;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.tag-item:last-child {
+  border-bottom: none;
 }
 
 .tag-dot {
@@ -217,13 +232,14 @@ onMounted(() => tagStore.fetchTags())
 
 .close-btn {
   font-size: 18px;
-  color: #bbb;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
 .form-title {
   font-size: 17px;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .form-body {
@@ -240,7 +256,7 @@ onMounted(() => tagStore.fetchTags())
 
 .form-field label {
   font-size: 13px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .form-input {
@@ -249,7 +265,7 @@ onMounted(() => tagStore.fetchTags())
   border-radius: 10px;
   font-size: 14px;
   color: var(--text-primary);
-  background: var(--bg-primary);
+  background: var(--bg-input);
 }
 
 .save-btn {

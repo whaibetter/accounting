@@ -51,8 +51,33 @@ export function getAccountTypeColor(type) {
   return map[type] || '#ccc'
 }
 
+const CATEGORY_ICON_MAP = {
+  food: '🍜',
+  transport: '🚗',
+  shopping: '🛍️',
+  housing: '🏠',
+  entertainment: '🎮',
+  medical: '💊',
+  education: '📚',
+  telecom: '📱',
+  social: '🎁',
+  other_expense: '📌',
+  salary: '💰',
+  parttime: '💼',
+  investment: '📈',
+  redpacket: '🧧',
+  refund: '🔄',
+  other_income: '📌',
+  cash: '💵',
+  bank_card: '💳',
+  credit_card: '💳',
+  alipay: '📱',
+  wechat: '💬',
+}
+
 export function getCategoryIcon(icon) {
-  return icon || '📝'
+  if (!icon) return '📝'
+  return CATEGORY_ICON_MAP[icon] || icon
 }
 
 import dayjs from 'dayjs'

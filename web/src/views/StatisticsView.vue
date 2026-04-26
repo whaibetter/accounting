@@ -2,126 +2,202 @@
   <div class="page stats-page">
     <div class="page-header">
       <span class="page-title">统计</span>
-      <div class="month-picker" @click="showMonthPicker = true">
-        {{ currentMonthLabel }} ▾
+      <div class="time-range-selector" @click="showTimeRangePicker = true">
+        {{ currentTimeLabel }} ▾
       </div>
+    </div>
+
+    <div class="time-presets">
+      <button
+        v-for="preset in timePresets"
+        :key="preset.value"
+        class="preset-btn"
+        :class="{ active: selectedPreset === preset.value }"
+        @click="applyPreset(preset.value)"
+      >
+        {{ preset.label }}
+      </button>
     </div>
 
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: statsType === 1 }" @click="statsType = 1">支出</div>
       <div class="tab-item" :class="{ active: statsType === 2 }" @click="statsType = 2">收入</div>
+      <div class="tab-item" :class="{ active: statsType === 3 }" @click="statsType = 3">余额趋势</div>
     </div>
 
-    <div class="card" style="padding: 20px; text-align: center">
-      <div class="big-amount">¥ {{ formatMoney(totalAmount) }}</div>
-      <div class="big-label">本月总{{ statsType === 1 ? '支出' : '收入' }} | 日均 ¥ {{ formatMoney(dailyAvg) }}</div>
-    </div>
-
-    <div class="card" style="padding: 16px">
-      <div class="section-title">支出趋势</div>
-      <div class="chart-container" v-if="hasTrendData">
-        <canvas ref="trendCanvas"></canvas>
+    <template v-if="statsType === 3">
+      <div class="card" style="padding: 16px">
+        <div class="section-header">
+          <span class="section-title">余额变化趋势</span>
+          <button class="chart-toggle-btn" :class="{ active: chartType === 'bar' }" @click="toggleChartType">
+            {{ chartType === 'line' ? '📈 折线' : '📊 柱状' }}
+          </button>
+        </div>
+        <div class="chart-container" v-if="balanceData.length">
+          <canvas ref="balanceCanvas"></canvas>
+        </div>
+        <div class="chart-empty" v-else>
+          <span class="empty-icon">📈</span>
+          <span class="empty-text">暂无余额数据</span>
+          <span class="empty-hint">请先添加账户和账单记录</span>
+        </div>
       </div>
-      <div class="chart-empty" v-else>
-        <span class="empty-icon">📈</span>
-        <span class="empty-text">暂无趋势数据</span>
-        <span class="empty-hint">该月份还没有账单记录</span>
-      </div>
-    </div>
 
-    <div class="card" style="padding: 16px">
-      <div class="section-title">支出占比</div>
-      <template v-if="hasCategoryData">
-        <div class="stats-donut-wrap">
-          <div class="donut-wrap">
-                <canvas ref="donutCanvas"></canvas>
-              </div>
-          <div class="legend-wrap">
-            <div v-for="(stat, idx) in categoryStats" :key="stat.category_id" class="legend-item">
-              <div class="legend-dot" :style="{ background: COLORS[idx % COLORS.length] }"></div>
-              <span class="legend-name">{{ stat.category_name }}</span>
-              <span class="legend-pct">{{ stat.percentage.toFixed(0) }}%</span>
-            </div>
+      <div class="card" style="padding: 16px" v-if="balanceData.length">
+        <div class="section-title">收支明细</div>
+        <div class="chart-container" style="height: 200px">
+          <canvas ref="balanceDetailCanvas"></canvas>
+        </div>
+        <div class="balance-stats" v-if="balanceSummary">
+          <div class="bs-item">
+            <span class="bs-label">期初余额</span>
+            <span class="bs-value">¥{{ formatMoney(balanceSummary.startBalance) }}</span>
           </div>
-        </div>
-      </template>
-      <div class="chart-empty" v-else>
-        <span class="empty-icon">📊</span>
-        <span class="empty-text">暂无分类数据</span>
-        <span class="empty-hint">该月份还没有{{ statsType === 1 ? '支出' : '收入' }}记录</span>
-      </div>
-    </div>
-
-    <div class="card balance-trend-entry" @click="$router.push('/balance-trend')">
-      <div class="entry-icon">📈</div>
-      <div class="entry-info">
-        <span class="entry-title">余额趋势</span>
-        <span class="entry-desc">查看账户余额历史变化</span>
-      </div>
-      <span class="entry-arrow">›</span>
-    </div>
-
-    <div v-if="showMonthPicker" class="modal-overlay" @click.self="showMonthPicker = false">
-      <div class="month-picker-modal">
-        <div class="picker-header">
-          <span class="picker-title">选择月份</span>
-          <span class="picker-close" @click="showMonthPicker = false">✕</span>
-        </div>
-        <div class="year-list">
-          <div v-for="year in yearList" :key="year" class="year-group">
-            <div
-              class="year-row"
-              :class="{ active: expandedYear === year }"
-              @click="toggleYear(year)"
-            >
-              <span class="year-label">{{ year }}年</span>
-              <span class="year-arrow" :class="{ expanded: expandedYear === year }">›</span>
-            </div>
-            <transition name="slide">
-              <div v-if="expandedYear === year" class="month-grid">
-                <div
-                  v-for="m in 12"
-                  :key="m"
-                  class="month-cell"
-                  :class="{
-                    selected: isSelected(year, m),
-                    current: isCurrentMonth(year, m),
-                    future: isFutureMonth(year, m),
-                  }"
-                  @click="selectMonth(year, m)"
-                >
-                  {{ m }}月
-                </div>
-              </div>
-            </transition>
+          <div class="bs-item">
+            <span class="bs-label">期末余额</span>
+            <span class="bs-value">¥{{ formatMoney(balanceSummary.endBalance) }}</span>
+          </div>
+          <div class="bs-item">
+            <span class="bs-label">总收入</span>
+            <span class="bs-value income">¥{{ formatMoney(balanceSummary.totalIncome) }}</span>
+          </div>
+          <div class="bs-item">
+            <span class="bs-label">总支出</span>
+            <span class="bs-value expense">¥{{ formatMoney(balanceSummary.totalExpense) }}</span>
           </div>
         </div>
       </div>
-    </div>
+    </template>
+
+    <template v-else>
+      <div class="card" style="padding: 20px; text-align: center">
+        <div class="big-amount">¥ {{ formatMoney(totalAmount) }}</div>
+        <div class="big-label">{{ currentTimeLabel }}总{{ statsType === 1 ? '支出' : '收入' }} | 日均 ¥ {{ formatMoney(dailyAvg) }}</div>
+      </div>
+
+      <div class="card" style="padding: 16px">
+        <div class="section-title">{{ statsType === 1 ? '支出' : '收入' }}趋势</div>
+        <div class="chart-container" v-if="hasTrendData">
+          <canvas ref="trendCanvas"></canvas>
+        </div>
+        <div class="chart-empty" v-else>
+          <span class="empty-icon">📈</span>
+          <span class="empty-text">暂无趋势数据</span>
+          <span class="empty-hint">该时间段还没有账单记录</span>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 16px">
+        <div class="section-title">{{ statsType === 1 ? '支出' : '收入' }}占比</div>
+        <template v-if="hasCategoryData">
+          <div class="stats-donut-wrap">
+            <div class="donut-wrap">
+              <canvas ref="donutCanvas"></canvas>
+            </div>
+            <div class="legend-wrap">
+              <div v-for="(stat, idx) in categoryStats" :key="stat.category_id" class="legend-item">
+                <div class="legend-dot" :style="{ background: COLORS[idx % COLORS.length] }"></div>
+                <span class="legend-name">{{ stat.category_name }}</span>
+                <span class="legend-pct">{{ stat.percentage.toFixed(0) }}%</span>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div class="chart-empty" v-else>
+          <span class="empty-icon">📊</span>
+          <span class="empty-text">暂无分类数据</span>
+          <span class="empty-hint">该时间段还没有{{ statsType === 1 ? '支出' : '收入' }}记录</span>
+        </div>
+      </div>
+    </template>
+
+    <MonthPicker
+      :visible="showTimeRangePicker"
+      v-model="selectedMonth"
+      @select="onMonthSelect"
+      @close="showTimeRangePicker = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useStatisticsStore } from '@/stores/data'
-import { formatMoney, getMonthRange, CATEGORY_COLORS } from '@/utils/format'
+import { useThemeStore, getThemeColor } from '@/stores/theme'
+import { formatMoney, CATEGORY_COLORS } from '@/utils/format'
 import dayjs from 'dayjs'
 import Chart from 'chart.js/auto'
+import MonthPicker from '@/components/MonthPicker.vue'
 
 const COLORS = CATEGORY_COLORS
 const statsStore = useStatisticsStore()
+const themeStore = useThemeStore()
 
 const statsType = ref(1)
-const currentMonth = ref(dayjs())
-const showMonthPicker = ref(false)
-const expandedYear = ref(dayjs().year())
+const selectedPreset = ref('month')
+const selectedMonth = ref(dayjs())
+const showTimeRangePicker = ref(false)
+const chartType = ref('line')
+
 const trendCanvas = ref(null)
 const donutCanvas = ref(null)
+const balanceCanvas = ref(null)
+const balanceDetailCanvas = ref(null)
 let trendChart = null
 let donutChart = null
+let balanceChart = null
+let balanceDetailChart = null
 
-const monthRange = computed(() => getMonthRange(currentMonth.value))
-const currentMonthLabel = computed(() => currentMonth.value.format('YYYY年M月'))
+const balanceData = ref([])
+
+const timePresets = [
+  { label: '今日', value: 'today' },
+  { label: '本周', value: 'week' },
+  { label: '本月', value: 'month' },
+  { label: '本季', value: 'quarter' },
+  { label: '本年', value: 'year' },
+]
+
+const dateRange = computed(() => {
+  const now = dayjs()
+  let start
+  switch (selectedPreset.value) {
+    case 'today':
+      start = now.startOf('day')
+      break
+    case 'week':
+      start = now.startOf('week')
+      break
+    case 'month':
+      start = now.startOf('month')
+      break
+    case 'quarter':
+      const quarter = Math.floor(now.month() / 3)
+      start = now.month(quarter * 3).startOf('month')
+      break
+    case 'year':
+      start = now.startOf('year')
+      break
+    default:
+      start = now.startOf('month')
+  }
+  return {
+    start_date: start.format('YYYY-MM-DD'),
+    end_date: now.format('YYYY-MM-DD'),
+  }
+})
+
+const currentTimeLabel = computed(() => {
+  const map = {
+    today: '今日',
+    week: '本周',
+    month: selectedMonth.value.format('YYYY年M月'),
+    quarter: '本季度',
+    year: '本年度',
+  }
+  return map[selectedPreset.value] || selectedMonth.value.format('YYYY年M月')
+})
+
 const categoryStats = computed(() => statsStore.categoryStats)
 const hasTrendData = computed(() => statsStore.trend && statsStore.trend.length > 0)
 const hasCategoryData = computed(() => categoryStats.value && categoryStats.value.length > 0)
@@ -130,53 +206,69 @@ const totalAmount = computed(() => {
   return statsStore.overview?.total_income || 0
 })
 const dailyAvg = computed(() => {
-  const days = currentMonth.value.daysInMonth()
-  return totalAmount.value / days
+  const range = dateRange.value
+  const days = dayjs(range.end_date).diff(dayjs(range.start_date), 'day') + 1
+  return totalAmount.value / Math.max(days, 1)
 })
 
-const yearList = computed(() => {
-  const now = dayjs()
-  const years = []
-  for (let y = now.year(); y >= now.year() - 5; y--) {
-    years.push(y)
+const balanceSummary = computed(() => {
+  if (!balanceData.value.length) return null
+  const first = balanceData.value[0]
+  const data = first.data
+  if (!data || !data.length) return null
+  return {
+    startBalance: data[0].balance,
+    endBalance: data[data.length - 1].balance,
+    totalIncome: data.reduce((s, d) => s + d.income, 0),
+    totalExpense: data.reduce((s, d) => s + d.expense, 0),
   }
-  return years
 })
 
-function toggleYear(year) {
-  expandedYear.value = expandedYear.value === year ? null : year
-}
-
-function isSelected(year, month) {
-  return currentMonth.value.year() === year && currentMonth.value.month() + 1 === month
-}
-
-function isCurrentMonth(year, month) {
-  const now = dayjs()
-  return now.year() === year && now.month() + 1 === month
-}
-
-function isFutureMonth(year, month) {
-  const now = dayjs()
-  const target = dayjs(`${year}-${String(month).padStart(2, '0')}-01`)
-  return target.isAfter(now, 'month')
-}
-
-function selectMonth(year, month) {
-  if (isFutureMonth(year, month)) return
-  currentMonth.value = dayjs(`${year}-${String(month).padStart(2, '0')}-01`)
-  showMonthPicker.value = false
+function applyPreset(value) {
+  selectedPreset.value = value
   fetchData()
 }
 
+function onMonthSelect() {
+  selectedPreset.value = 'month'
+  fetchData()
+}
+
+function toggleChartType() {
+  chartType.value = chartType.value === 'line' ? 'bar' : 'line'
+  nextTick(renderBalanceChart)
+}
+
 async function fetchData() {
-  const range = monthRange.value
-  await Promise.all([
-    statsStore.fetchOverview(range),
-    statsStore.fetchCategoryStats({ ...range, type: statsType.value }),
-    statsStore.fetchTrend({ ...range, granularity: 'day' }),
-  ])
-  nextTick(renderCharts)
+  const range = dateRange.value
+  if (statsType.value === 3) {
+    await loadBalanceData()
+  } else {
+    await Promise.all([
+      statsStore.fetchOverview(range),
+      statsStore.fetchCategoryStats({ ...range, type: statsType.value }),
+      statsStore.fetchTrend({ ...range, granularity: selectedPreset.value === 'today' ? 'hour' : 'day' }),
+    ])
+    nextTick(renderCharts)
+  }
+}
+
+async function loadBalanceData() {
+  const range = dateRange.value
+  try {
+    const { statisticsApi } = await import('@/services')
+    const res = await statisticsApi.balanceTrend(range)
+    if (res.data.code === 200) {
+      balanceData.value = res.data.data || []
+    }
+  } catch (e) {
+    console.error(e)
+    balanceData.value = []
+  }
+  nextTick(() => {
+    renderBalanceChart()
+    renderBalanceDetailChart()
+  })
 }
 
 function renderCharts() {
@@ -189,7 +281,13 @@ function renderTrendChart() {
   if (trendChart) trendChart.destroy()
 
   const data = statsStore.trend
-  const labels = data.map(d => dayjs(d.period).format('M/D'))
+  const accent = getThemeColor('--accent') || '#d4a574'
+  const textColor = getThemeColor('--text-muted') || '#ccc'
+
+  const labels = data.map(d => {
+    if (selectedPreset.value === 'today') return dayjs(d.period).format('H:00')
+    return dayjs(d.period).format('M/D')
+  })
   const values = data.map(d => statsType.value === 1 ? d.expense : d.income)
 
   trendChart = new Chart(trendCanvas.value, {
@@ -198,8 +296,8 @@ function renderTrendChart() {
       labels,
       datasets: [{
         data: values,
-        borderColor: '#d4a574',
-        backgroundColor: 'rgba(212, 165, 116, 0.1)',
+        borderColor: accent,
+        backgroundColor: accent + '1a',
         borderWidth: 2.5,
         fill: true,
         tension: 0.4,
@@ -210,9 +308,18 @@ function renderTrendChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: true } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: getThemeColor('--bg-card') || '#fff',
+          titleColor: getThemeColor('--text-primary') || '#333',
+          bodyColor: getThemeColor('--text-secondary') || '#666',
+          borderColor: getThemeColor('--border') || '#eee',
+          borderWidth: 1,
+        },
+      },
       scales: {
-        x: { display: true, grid: { display: false }, ticks: { font: { size: 10 }, color: '#ccc', maxTicksLimit: 6 } },
+        x: { display: true, grid: { display: false }, ticks: { font: { size: 10 }, color: textColor, maxTicksLimit: 6 } },
         y: { display: false },
       },
     },
@@ -225,6 +332,7 @@ function renderDonutChart() {
 
   const data = categoryStats.value
   const colors = data.map((_, i) => COLORS[i % COLORS.length])
+  const borderColor = getThemeColor('--bg-card') || '#fff'
 
   const ctx = donutCanvas.value.getContext('2d')
   donutChart = new Chart(ctx, {
@@ -235,7 +343,7 @@ function renderDonutChart() {
         data: data.map(d => d.amount),
         backgroundColor: colors,
         borderWidth: 2,
-        borderColor: '#fff',
+        borderColor,
         cutout: '68%',
         hoverOffset: 4,
       }],
@@ -243,18 +351,246 @@ function renderDonutChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: getThemeColor('--bg-card') || '#fff',
+          titleColor: getThemeColor('--text-primary') || '#333',
+          bodyColor: getThemeColor('--text-secondary') || '#666',
+          borderColor: getThemeColor('--border') || '#eee',
+          borderWidth: 1,
+        },
+      },
+    },
+  })
+}
+
+function renderBalanceChart() {
+  if (!balanceCanvas.value || !balanceData.value.length) return
+  if (balanceChart) balanceChart.destroy()
+
+  const isLine = chartType.value === 'line'
+  const textColor = getThemeColor('--text-muted') || '#999'
+  const gridColor = getThemeColor('--border') || '#f0f0f0'
+
+  const datasets = balanceData.value.map((account) => {
+    const base = {
+      label: account.account_name,
+      data: account.data.map(d => d.balance),
+    }
+    if (isLine) {
+      base.borderColor = account.color
+      base.backgroundColor = account.color + '18'
+      base.borderWidth = 2
+      base.fill = true
+      base.tension = 0.4
+      base.pointRadius = account.data.length < 60 ? 2 : 0
+      base.pointHoverRadius = 4
+    } else {
+      base.backgroundColor = account.color + 'aa'
+      base.borderRadius = 3
+      base.barMaxWidth = 16
+    }
+    return base
+  })
+
+  const dates = balanceData.value[0]?.data.map(d => d.date.slice(5)) || []
+
+  balanceChart = new Chart(balanceCanvas.value, {
+    type: isLine ? 'line' : 'bar',
+    data: { labels: dates, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: balanceData.value.length > 1, position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: textColor } },
+        tooltip: {
+          backgroundColor: getThemeColor('--bg-card') || '#fff',
+          titleColor: getThemeColor('--text-primary') || '#333',
+          bodyColor: getThemeColor('--text-secondary') || '#666',
+          borderColor: getThemeColor('--border') || '#eee',
+          borderWidth: 1,
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ¥${formatMoney(ctx.parsed.y)}`
+          }
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: textColor, maxTicksLimit: 8 } },
+        y: {
+          grid: { color: gridColor },
+          ticks: {
+            font: { size: 10 }, color: textColor,
+            callback: (v) => {
+              if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + 'w'
+              if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k'
+              return v.toFixed(0)
+            }
+          },
+        },
+      },
+    },
+  })
+}
+
+function renderBalanceDetailChart() {
+  if (!balanceDetailCanvas.value || !balanceData.value.length) return
+  if (balanceDetailChart) balanceDetailChart.destroy()
+
+  const first = balanceData.value[0]
+  const data = first.data
+  const dates = data.map(d => d.date.slice(5))
+  const textColor = getThemeColor('--text-muted') || '#999'
+  const gridColor = getThemeColor('--border') || '#f0f0f0'
+
+  balanceDetailChart = new Chart(balanceDetailCanvas.value, {
+    type: 'bar',
+    data: {
+      labels: dates,
+      datasets: [
+        {
+          label: '收入',
+          data: data.map(d => d.income),
+          backgroundColor: getThemeColor('--success') + 'aa' || '#34d399aa',
+          borderRadius: 3,
+          barMaxWidth: 14,
+        },
+        {
+          label: '支出',
+          data: data.map(d => d.expense),
+          backgroundColor: getThemeColor('--danger') + 'aa' || '#f87171aa',
+          borderRadius: 3,
+          barMaxWidth: 14,
+        }
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: textColor } },
+        tooltip: {
+          backgroundColor: getThemeColor('--bg-card') || '#fff',
+          titleColor: getThemeColor('--text-primary') || '#333',
+          bodyColor: getThemeColor('--text-secondary') || '#666',
+          borderColor: getThemeColor('--border') || '#eee',
+          borderWidth: 1,
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ¥${formatMoney(ctx.parsed.y)}`
+          }
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: textColor, maxTicksLimit: 8 } },
+        y: {
+          grid: { color: gridColor },
+          ticks: {
+            font: { size: 10 }, color: textColor,
+            callback: (v) => {
+              if (Math.abs(v) >= 10000) return (v / 10000).toFixed(1) + 'w'
+              if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k'
+              return v.toFixed(0)
+            }
+          },
+        },
+      },
     },
   })
 }
 
 watch(statsType, fetchData)
-watch(currentMonth, fetchData)
+watch(() => themeStore.themeVersion, () => {
+  nextTick(() => {
+    if (statsType.value === 3) {
+      renderBalanceChart()
+      renderBalanceDetailChart()
+    } else {
+      renderCharts()
+    }
+  })
+})
 
 onMounted(fetchData)
 </script>
 
 <style scoped>
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px 8px;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.time-range-selector {
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.time-presets {
+  display: flex;
+  gap: 6px;
+  padding: 4px 16px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.time-presets::-webkit-scrollbar {
+  display: none;
+}
+
+.preset-btn {
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 12px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border, #eee);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.preset-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.tab-bar {
+  display: flex;
+  margin: 0 16px 12px;
+  background: var(--bg-tab);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-item.active {
+  background: var(--bg-card);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
 .big-amount {
   font-size: 26px;
   font-weight: 800;
@@ -270,6 +606,41 @@ onMounted(fetchData)
 .chart-container {
   height: 180px;
   position: relative;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.section-header .section-title {
+  margin-bottom: 0;
+}
+
+.chart-toggle-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border, #eee);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-toggle-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
 }
 
 .chart-empty {
@@ -337,204 +708,49 @@ onMounted(fetchData)
 }
 
 .legend-name {
-  color: #666;
+  color: var(--text-secondary);
   flex: 1;
 }
 
 .legend-pct {
   font-weight: 700;
-  color: #444;
+  color: var(--text-primary);
 }
 
-.balance-trend-entry {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
-  cursor: pointer;
-  transition: background 0.15s;
+.balance-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
 }
 
-.balance-trend-entry:active {
-  background: rgba(0, 0, 0, 0.03);
-}
-
-.entry-icon {
-  font-size: 28px;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(212, 165, 116, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.entry-info {
-  flex: 1;
+.bs-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.entry-title {
+.bs-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.bs-value {
   font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.entry-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.entry-arrow {
-  font-size: 18px;
-  color: var(--text-muted);
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 200;
-}
-
-.month-picker-modal {
-  background: var(--bg-card);
-  border-radius: 20px 20px 0 0;
-  padding: 20px 16px 32px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.picker-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  padding: 0 4px;
-}
-
-.picker-title {
-  font-size: 17px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
 
-.picker-close {
-  font-size: 18px;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px 8px;
+.bs-value.income {
+  color: var(--success);
 }
 
-.year-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.bs-value.expense {
+  color: var(--danger);
 }
 
-.year-group {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.year-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: background 0.15s;
-  border-radius: 12px;
-}
-
-.year-row:hover {
-  background: rgba(0, 0, 0, 0.03);
-}
-
-.year-row.active {
-  background: rgba(212, 165, 116, 0.08);
-}
-
-.year-label {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.year-arrow {
-  font-size: 18px;
-  color: var(--text-muted);
-  transition: transform 0.25s ease;
-}
-
-.year-arrow.expanded {
-  transform: rotate(90deg);
-}
-
-.month-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  padding: 4px 8px 12px;
-}
-
-.month-cell {
-  text-align: center;
-  padding: 10px 0;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  background: rgba(0, 0, 0, 0.02);
-}
-
-.month-cell:hover {
-  background: rgba(212, 165, 116, 0.12);
-}
-
-.month-cell.selected {
-  background: var(--accent);
-  color: white;
-  font-weight: 700;
-}
-
-.month-cell.current:not(.selected) {
-  border: 1.5px solid var(--accent);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.month-cell.future {
-  color: var(--text-muted);
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.25s ease;
-  max-height: 200px;
-  overflow: hidden;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
+.stats-page {
+  padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 12px);
 }
 </style>

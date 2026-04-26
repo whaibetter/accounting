@@ -165,9 +165,11 @@ class CategoryUpdate(BaseModel):
     Attributes:
         name: 分类名称
         icon: 图标标识
+        parent_id: 父分类ID（用于转移子分类到其他父分类，设为null则提升为顶级分类）
     """
     name: Optional[str] = Field(default=None, min_length=1, max_length=50)
     icon: Optional[str] = None
+    parent_id: Optional[int] = None
 
 
 class CategoryOut(BaseModel):

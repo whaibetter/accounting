@@ -41,7 +41,7 @@
         </div>
         <div class="acct-actions">
           <button class="action-btn edit" @click="editAccount(acc)">编辑</button>
-          <button class="action-btn delete" @click="deleteAccount(acc.id)">删除</button>
+          <button class="action-btn delete" @click="handleDeleteAccount(acc)">删除</button>
         </div>
       </div>
     </div>
@@ -79,6 +79,14 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      ref="confirmDialog"
+      icon="🗑️"
+      title="确定要删除此账户吗？"
+      description="此操作不可撤销，删除后账户及其关联的账单数据将永久丢失。"
+      confirmText="确认删除"
+    />
   </div>
 </template>
 
@@ -87,8 +95,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useAccountStore } from '@/stores/data'
 import { formatMoney, getAccountTypeName, getAccountTypeColor } from '@/utils/format'
 import CustomSelect from '@/components/CustomSelect.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const accountStore = useAccountStore()
+const confirmDialog = ref(null)
 
 const accountTypeOptions = [
   { label: '现金', value: 1 },
@@ -142,10 +152,11 @@ async function saveAccount() {
   }
 }
 
-async function deleteAccount(id) {
-  if (!confirm('确定删除此账户？')) return
+async function handleDeleteAccount(acc) {
+  const confirmed = await confirmDialog.value.show()
+  if (!confirmed) return
   try {
-    await accountStore.deleteAccount(id)
+    await accountStore.deleteAccount(acc.id)
     accountStore.fetchAccounts()
   } catch (e) {
     alert(e.response?.data?.detail || '删除失败')

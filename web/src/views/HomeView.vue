@@ -54,6 +54,7 @@
 <script setup>
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useStatisticsStore, useCategoryStore } from '@/stores/data'
+import { useThemeStore, getThemeColor } from '@/stores/theme'
 import { formatMoney, formatMoneyWithSymbol, getMonthRange, CATEGORY_COLORS } from '@/utils/format'
 import dayjs from 'dayjs'
 import Chart from 'chart.js/auto'
@@ -61,6 +62,7 @@ import Chart from 'chart.js/auto'
 const COLORS = CATEGORY_COLORS
 const statsStore = useStatisticsStore()
 const categoryStore = useCategoryStore()
+const themeStore = useThemeStore()
 
 const showAmount = ref(true)
 const donutCanvas = ref(null)
@@ -85,6 +87,7 @@ function renderDonut() {
 
   const data = categoryStats.value
   const colors = data.map((_, i) => COLORS[i % COLORS.length])
+  const borderColor = getThemeColor('--bg-card') || '#fff'
 
   const ctx = donutCanvas.value.getContext('2d')
   chartInstance = new Chart(ctx, {
@@ -95,7 +98,7 @@ function renderDonut() {
         data: data.map(d => d.amount),
         backgroundColor: colors,
         borderWidth: 2,
-        borderColor: '#fff',
+        borderColor,
         cutout: '70%',
         hoverOffset: 4,
       }],
@@ -107,6 +110,11 @@ function renderDonut() {
         legend: { display: false },
         tooltip: {
           enabled: true,
+          backgroundColor: getThemeColor('--bg-card') || '#fff',
+          titleColor: getThemeColor('--text-primary') || '#333',
+          bodyColor: getThemeColor('--text-secondary') || '#666',
+          borderColor: getThemeColor('--border') || '#eee',
+          borderWidth: 1,
           callbacks: {
             label: (ctx) => `${ctx.label}: ¥${formatMoney(ctx.parsed)}`
           }
@@ -118,6 +126,10 @@ function renderDonut() {
 }
 
 watch(categoryStats, () => {
+  nextTick(renderDonut)
+})
+
+watch(() => themeStore.themeVersion, () => {
   nextTick(renderDonut)
 })
 
@@ -134,7 +146,7 @@ onMounted(async () => {
 
 <style scoped>
 .home-page {
-  padding-bottom: 20px;
+  padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 12px);
 }
 
 .home-header {
@@ -268,19 +280,19 @@ onMounted(async () => {
 }
 
 .legend-name {
-  color: #666;
+  color: var(--text-secondary);
   flex: 1;
 }
 
 .legend-pct {
   font-weight: 700;
-  color: #444;
+  color: var(--text-primary);
   min-width: 28px;
   text-align: right;
 }
 
 .legend-amt {
-  color: #999;
+  color: var(--text-muted);
   font-size: 11px;
   min-width: 56px;
   text-align: right;

@@ -160,8 +160,13 @@ export const THEMES = {
   },
 }
 
+export function getThemeColor(varName) {
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+}
+
 export const useThemeStore = defineStore('theme', () => {
   const currentThemeId = ref(localStorage.getItem('theme') || 'warmSun')
+  const themeVersion = ref(0)
 
   function applyTheme(themeId) {
     const theme = THEMES[themeId]
@@ -172,6 +177,7 @@ export const useThemeStore = defineStore('theme', () => {
     }
     currentThemeId.value = themeId
     localStorage.setItem('theme', themeId)
+    themeVersion.value++
   }
 
   function initTheme() {
@@ -182,5 +188,5 @@ export const useThemeStore = defineStore('theme', () => {
     applyTheme(newId)
   })
 
-  return { currentThemeId, applyTheme, initTheme }
+  return { currentThemeId, themeVersion, applyTheme, initTheme }
 })

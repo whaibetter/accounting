@@ -1,5 +1,5 @@
 <template>
-  <div class="page bills-page">
+  <div class="page bills-page" ref="pageRef" @scroll="onScroll">
     <div class="page-header">
       <span class="page-title">账单</span>
       <div class="month-picker" @click="showMonthPicker = true">
@@ -18,54 +18,61 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-center">
+    <div v-if="loading && bills.length === 0" class="loading-center">
       <span class="loading-spinner"></span>
     </div>
 
-    <div v-else-if="groupedBills.length === 0" class="empty-state">
+    <div v-else-if="bills.length === 0" class="empty-state">
       <div class="icon">📋</div>
       <div class="text">暂无账单记录</div>
     </div>
 
-    <div v-else>
-      <div v-for="group in groupedBills" :key="group.date" class="bill-group">
-        <div class="group-date">{{ group.label }}</div>
-        <div v-for="bill in group.bills" :key="bill.id" class="bill-item" @click="editBill(bill)">
-          <div class="bii-icon" :style="{ background: getCatBgColor(bill.category_icon) }">
-            {{ bill.category_icon || '📝' }}
+    <div v-else class="bill-feed">
+      <template v-for="group in groupedBills" :key="group.date">
+        <div class="date-divider">
+          <span class="divider-line"></span>
+          <span class="divider-text">{{ group.label }}</span>
+          <span class="divider-line"></span>
+        </div>
+        <div v-for="bill in group.bills" :key="bill.id" class="feed-item" @click="editBill(bill)">
+          <div class="fi-icon" :style="{ background: getCatBgColor(bill.category_icon) }">
+            {{ getCatIcon(bill.category_icon) }}
           </div>
-          <div class="bii-info">
-            <div class="bii-name">{{ bill.remark || bill.category_name }}</div>
-            <div class="bii-cat">{{ bill.category_name }}</div>
-          </div>
-          <div class="bii-amt" :class="{ income: bill.type === 2, transfer: bill.type === 3 }">
-            {{ bill.type === 2 ? '+' : '-' }}¥ {{ formatMoney(bill.amount) }}
+          <div class="fi-content">
+            <div class="fi-top">
+              <span class="fi-name">{{ bill.remark || bill.category_name }}</span>
+              <span class="fi-amt" :class="{ income: bill.type === 2, transfer: bill.type === 3 }">
+                {{ bill.type === 2 ? '+' : bill.type === 3 ? '' : '-' }}¥{{ formatMoney(bill.amount) }}
+              </span>
+            </div>
+            <div class="fi-bottom">
+              <span class="fi-cat">{{ bill.category_name }}</span>
+              <span class="fi-account">{{ bill.account_name }}</span>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
 
-      <div v-if="hasMore" class="load-more" @click="loadMore">加载更多</div>
+      <div v-if="loadingMore" class="loading-more">
+        <span class="loading-spinner small"></span>
+        <span>加载中...</span>
+      </div>
+      <div v-else-if="noMore" class="no-more">— 没有更多了 —</div>
     </div>
 
-    <div v-if="showMonthPicker" class="modal-overlay" @click.self="showMonthPicker = false">
-      <div class="month-picker-modal">
-        <div class="picker-header">
-          <button @click="prevMonth">‹</button>
-          <span>{{ pickerYear }}年{{ pickerMonth }}月</span>
-          <button @click="nextMonth">›</button>
-        </div>
-        <div class="picker-actions">
-          <button class="btn-primary" @click="confirmMonth">确定</button>
-        </div>
-      </div>
-    </div>
+    <MonthPicker
+      :visible="showMonthPicker"
+      v-model="currentMonth"
+      @select="onMonthSelect"
+      @close="showMonthPicker = false"
+    />
 
     <div v-if="editingBill" class="modal-overlay" @click.self="editingBill = null">
       <div class="edit-modal">
         <div class="edit-header">
           <span class="close-btn" @click="editingBill = null">✕</span>
           <span class="edit-title">编辑账单</span>
-          <span class="delete-btn" @click="deleteBill">删除</span>
+          <span class="delete-btn" @click="handleDeleteBill">删除</span>
         </div>
         <div class="edit-body">
           <div class="edit-row">
@@ -84,27 +91,40 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      ref="confirmDialog"
+      icon="🗑️"
+      title="确定要删除此账单吗？"
+      description="此操作不可撤销，删除后账单数据将永久丢失。"
+      confirmText="确认删除"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useBillStore, useStatisticsStore } from '@/stores/data'
-import { formatMoney, formatDateCN, getWeekday, getMonthRange } from '@/utils/format'
+import { formatMoney, formatDateCN, getWeekday, getMonthRange, getCategoryIcon } from '@/utils/format'
 import dayjs from 'dayjs'
+import MonthPicker from '@/components/MonthPicker.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const billStore = useBillStore()
 const statsStore = useStatisticsStore()
+const confirmDialog = ref(null)
 
 const currentMonth = ref(dayjs())
 const showMonthPicker = ref(false)
-const pickerYear = ref(dayjs().year())
-const pickerMonth = ref(dayjs().month() + 1)
 const editingBill = ref(null)
 const editForm = ref({ amount: 0, remark: '', bill_date: '' })
+const pageRef = ref(null)
+const loadingMore = ref(false)
 
+const bills = computed(() => billStore.bills)
 const loading = computed(() => billStore.loading)
-const hasMore = computed(() => billStore.bills.length < billStore.total)
+const hasMore = computed(() => bills.value.length < billStore.total)
+const noMore = computed(() => !loading.value && !loadingMore.value && bills.value.length > 0 && !hasMore.value)
 
 const monthRange = computed(() => getMonthRange(currentMonth.value))
 const currentMonthLabel = computed(() => currentMonth.value.format('YYYY年M月'))
@@ -113,7 +133,7 @@ const monthIncome = computed(() => statsStore.overview?.total_income || 0)
 
 const groupedBills = computed(() => {
   const groups = {}
-  for (const bill of billStore.bills) {
+  for (const bill of bills.value) {
     const date = bill.bill_date
     if (!groups[date]) {
       groups[date] = {
@@ -134,39 +154,45 @@ function getCatBgColor(icon) {
   return catBgColors[idx]
 }
 
+function getCatIcon(icon) {
+  return getCategoryIcon(icon)
+}
+
 async function fetchBills() {
   const range = monthRange.value
   await Promise.all([
     billStore.fetchBills({ ...range, page: 1 }),
     statsStore.fetchOverview(range),
   ])
-}
-
-function loadMore() {
-  billStore.fetchBills({ ...monthRange.value, page: billStore.currentPage + 1 })
-}
-
-function prevMonth() {
-  if (pickerMonth.value === 1) {
-    pickerMonth.value = 12
-    pickerYear.value--
-  } else {
-    pickerMonth.value--
+  if (pageRef.value) {
+    pageRef.value.scrollTop = 0
   }
 }
 
-function nextMonth() {
-  if (pickerMonth.value === 12) {
-    pickerMonth.value = 1
-    pickerYear.value++
-  } else {
-    pickerMonth.value++
+async function loadMore() {
+  if (loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  try {
+    const range = monthRange.value
+    await billStore.fetchBills({
+      ...range,
+      page: billStore.currentPage + 1,
+      append: true,
+    })
+  } finally {
+    loadingMore.value = false
   }
 }
 
-function confirmMonth() {
-  currentMonth.value = dayjs(`${pickerYear.value}-${String(pickerMonth.value).padStart(2, '0')}-01`)
-  showMonthPicker.value = false
+function onScroll() {
+  if (!pageRef.value) return
+  const { scrollTop, scrollHeight, clientHeight } = pageRef.value
+  if (scrollHeight - scrollTop - clientHeight < 100 && hasMore.value && !loadingMore.value) {
+    loadMore()
+  }
+}
+
+function onMonthSelect() {
   fetchBills()
 }
 
@@ -190,9 +216,10 @@ async function saveBill() {
   }
 }
 
-async function deleteBill() {
+async function handleDeleteBill() {
   if (!editingBill.value) return
-  if (!confirm('确定删除此账单？')) return
+  const confirmed = await confirmDialog.value.show()
+  if (!confirmed) return
   try {
     await billStore.deleteBill(editingBill.value.id)
     editingBill.value = null
@@ -208,6 +235,13 @@ onMounted(fetchBills)
 </script>
 
 <style scoped>
+.bills-page {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
 .overview-cards {
   display: flex;
   gap: 10px;
@@ -234,35 +268,52 @@ onMounted(fetchBills)
   color: var(--text-primary);
 }
 
-.bill-group {
-  padding: 8px 16px;
+.bill-feed {
+  padding: 0 16px 90px;
 }
 
-.group-date {
-  font-size: 13px;
-  font-weight: 700;
-  color: #888;
-  margin-bottom: 8px;
-}
-
-.bill-item {
+.date-divider {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 0.5px solid #f0ece5;
+  padding: 14px 0 8px;
+}
+
+.divider-line {
+  flex: 1;
+  height: 0.5px;
+  background: #f0ece5;
+}
+
+.divider-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  white-space: nowrap;
+}
+
+.feed-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 0.5px solid #f5f2ed;
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.bill-item:active {
+.feed-item:active {
   background: rgba(0, 0, 0, 0.02);
 }
 
-.bii-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+.feed-item:last-child {
+  border-bottom: none;
+}
+
+.fi-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -270,12 +321,19 @@ onMounted(fetchBills)
   flex-shrink: 0;
 }
 
-.bii-info {
+.fi-content {
   flex: 1;
   min-width: 0;
 }
 
-.bii-name {
+.fi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fi-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
@@ -284,33 +342,54 @@ onMounted(fetchBills)
   white-space: nowrap;
 }
 
-.bii-cat {
-  font-size: 11px;
-  color: #bbb;
-  margin-top: 1px;
-}
-
-.bii-amt {
+.fi-amt {
   font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
-.bii-amt.income {
+.fi-amt.income {
   color: var(--success);
 }
 
-.bii-amt.transfer {
+.fi-amt.transfer {
   color: #7b9bd4;
 }
 
-.load-more {
-  text-align: center;
+.fi-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.fi-cat {
+  font-size: 11px;
+  color: #bbb;
+}
+
+.fi-account {
+  font-size: 11px;
+  color: #ccc;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 16px;
-  color: var(--text-light);
+  color: var(--text-muted);
   font-size: 13px;
-  cursor: pointer;
+}
+
+.no-more {
+  text-align: center;
+  padding: 20px;
+  color: #ddd;
+  font-size: 12px;
 }
 
 .loading-center {
@@ -333,36 +412,12 @@ onMounted(fetchBills)
   padding: 20px;
 }
 
-.month-picker-modal,
 .edit-modal {
   background: var(--bg-card);
   border-radius: 20px;
   padding: 24px;
   width: 100%;
   max-width: 320px;
-}
-
-.picker-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 17px;
-  font-weight: 600;
-  margin-bottom: 20px;
-}
-
-.picker-header button {
-  font-size: 22px;
-  color: var(--accent);
-  padding: 4px 12px;
-}
-
-.picker-actions {
-  text-align: center;
-}
-
-.picker-actions .btn-primary {
-  width: 100%;
 }
 
 .edit-header {

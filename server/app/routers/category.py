@@ -116,7 +116,11 @@ def update_category(category_id: int, category: schemas.CategoryUpdate,
     Raises:
         HTTPException 404: 分类不存在
     """
-    updated = crud.update_category(db, category_id, **category.model_dump(exclude_none=True))
+    try:
+        data = category.model_dump(exclude_unset=True)
+        updated = crud.update_category(db, category_id, **data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not updated:
         raise HTTPException(status_code=404, detail="分类不存在")
 
@@ -129,14 +133,17 @@ def update_category(category_id: int, category: schemas.CategoryUpdate,
 
 @router.delete("/{category_id}", response_model=schemas.ApiResponse[None],
                summary="删除分类")
-def delete_category(category_id: int, db: Session = Depends(get_db)):
+def delete_category(category_id: int, cascade: bool = Query(False, description="是否级联删除子分类"),
+                    db: Session = Depends(get_db)):
     """
     删除分类。
 
-    如果分类下存在子分类或关联账单记录，则不允许删除。
+    默认情况下，如果分类下存在子分类或关联账单记录，则不允许删除。
+    当cascade=True时，将级联删除所有子分类（子分类下有账单时仍会阻止）。
 
     Args:
         category_id: 分类ID
+        cascade: 是否级联删除子分类
 
     Returns:
         ApiResponse[None]: 删除结果
@@ -146,7 +153,7 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
         HTTPException 400: 存在子分类或关联账单
     """
     try:
-        if not crud.delete_category(db, category_id):
+        if not crud.delete_category(db, category_id, cascade=cascade):
             raise HTTPException(status_code=404, detail="分类不存在")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

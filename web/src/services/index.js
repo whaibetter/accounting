@@ -55,8 +55,8 @@ export const categoryApi = {
   update(id, data) {
     return api.put(`/categories/${id}`, data)
   },
-  delete(id) {
-    return api.delete(`/categories/${id}`)
+  delete(id, cascade = false) {
+    return api.delete(`/categories/${id}`, { params: { cascade } })
   },
 }
 

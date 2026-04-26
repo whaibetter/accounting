@@ -42,34 +42,36 @@ const currentRoute = computed(() => route.name)
 
 <style scoped>
 .main-layout {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
+  position: relative;
 }
 
 .layout-content {
   flex: 1;
-  padding-bottom: 88px;
+  overflow: hidden;
 }
 
 .bottom-nav {
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
   z-index: 100;
-  padding: 0 12px 8px;
+  padding: 0 10px 8px;
+  padding-bottom: calc(8px + var(--safe-bottom));
   pointer-events: none;
 }
 
 .nav-inner {
-  max-width: 480px;
-  margin: 0 auto;
   display: flex;
   justify-content: space-around;
   align-items: flex-end;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-radius: 20px;
@@ -90,9 +92,9 @@ const currentRoute = computed(() => route.name)
   color: var(--text-light);
   transition: all 0.25s ease;
   text-decoration: none;
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 12px;
-  min-width: 52px;
+  min-width: 48px;
 }
 
 .nav-item.active {
@@ -125,16 +127,16 @@ const currentRoute = computed(() => route.name)
 }
 
 .nav-fab {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
   background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -20px;
-  box-shadow: 0 4px 16px rgba(196, 148, 99, 0.4);
+  margin-top: -18px;
+  box-shadow: 0 4px 14px rgba(196, 148, 99, 0.4);
   cursor: pointer;
   transition: all 0.25s ease;
 }
@@ -154,11 +156,5 @@ const currentRoute = computed(() => route.name)
   font-weight: 600;
   color: var(--accent);
   letter-spacing: 0.3px;
-}
-
-@media (min-width: 768px) {
-  .bottom-nav {
-    padding: 0 20px 12px;
-  }
 }
 </style>

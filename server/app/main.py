@@ -3,6 +3,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,7 +12,15 @@ from app.dependencies import require_auth
 from app.middleware import register_middlewares
 from app.routers import account, bill, category, tag, statistics, export, import_data, auth, llm
 
-LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+SERVER_DIR = Path(__file__).resolve().parent.parent
+ENV = os.getenv("APP_ENV", "development")
+
+env_file = SERVER_DIR / f".env.{ENV}"
+if env_file.exists():
+    load_dotenv(env_file)
+    ENV = os.getenv("APP_ENV", ENV)
+
+LOG_DIR = SERVER_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / "app.log"
 
@@ -24,7 +33,8 @@ logging.basicConfig(
     ],
 )
 
-ENV = os.getenv("APP_ENV", "development")
+logger = logging.getLogger("main")
+logger.info(f"运行环境: {ENV}")
 
 
 @asynccontextmanager
@@ -33,14 +43,16 @@ async def lifespan(app: FastAPI):
     yield
 
 
+enable_docs = os.getenv("ENABLE_DOCS", "true" if ENV == "development" else "false").lower() == "true"
+
 app = FastAPI(
     title="记账软件API",
     description="个人记账软件后端API",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs" if ENV == "development" else None,
-    redoc_url="/redoc" if ENV == "development" else None,
-    openapi_url="/openapi.json" if ENV == "development" else None,
+    docs_url="/docs" if enable_docs else None,
+    redoc_url="/redoc" if enable_docs else None,
+    openapi_url="/openapi.json" if enable_docs else None,
 )
 
 ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
@@ -68,4 +80,4 @@ app.include_router(llm.router, dependencies=[Depends(require_auth)])
 
 @app.get("/health", tags=["系统"])
 def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "env": ENV}

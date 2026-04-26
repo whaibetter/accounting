@@ -24,7 +24,11 @@ export const useBillStore = defineStore('bill', () => {
         keyword: params.keyword,
       })
       if (res.data.code === 200) {
-        bills.value = res.data.data.items
+        if (params.append) {
+          bills.value = [...bills.value, ...res.data.data.items]
+        } else {
+          bills.value = res.data.data.items
+        }
         total.value = res.data.data.total
         currentPage.value = res.data.data.page
         pageSize.value = res.data.data.size

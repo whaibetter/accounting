@@ -72,10 +72,11 @@ def init_db():
     执行以下操作：
         1. 创建所有数据表（如果不存在）
         2. 插入预设分类数据（如果分类表为空）
+        3. 初始化认证系统（密码哈希、JWT密钥）
 
     此函数应在应用启动时调用一次。
     """
-    from app.models import Account, Category  # noqa: F401
+    from app.models import Account, Category, SystemConfig  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
@@ -84,6 +85,9 @@ def init_db():
         _seed_default_account(db)
     finally:
         db.close()
+
+    from app.auth import init_auth
+    init_auth()
 
 
 def _seed_categories(db):
