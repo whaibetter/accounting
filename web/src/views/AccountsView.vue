@@ -131,7 +131,7 @@ function getAccIcon(icon) {
 
 function editAccount(acc) {
   editingAccount.value = acc
-  form.value = { name: acc.name, type: acc.type, icon: acc.icon || '', initial_balance: acc.initial_balance, is_default: acc.is_default === 1 }
+  form.value = { name: acc.name, type: acc.type, icon: getAccountIcon(acc.icon), initial_balance: acc.initial_balance, is_default: acc.is_default === 1 }
 }
 
 function closeForm() {
@@ -322,6 +322,9 @@ onMounted(() => accountStore.fetchAccounts())
   padding: 24px;
   width: 100%;
   max-width: 360px;
+  max-height: 85vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .form-header {

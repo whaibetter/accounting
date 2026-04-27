@@ -80,6 +80,12 @@
             <input type="number" v-model="editForm.amount" step="0.01" class="edit-input" />
           </div>
           <div class="edit-row">
+            <label>分类</label>
+            <select v-model="editForm.category_id" class="edit-input">
+              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ getCatIcon(cat.icon) }} {{ cat.name }}</option>
+            </select>
+          </div>
+          <div class="edit-row">
             <label>备注</label>
             <input type="text" v-model="editForm.remark" class="edit-input" />
           </div>
@@ -104,22 +110,25 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useBillStore, useStatisticsStore } from '@/stores/data'
+import { useBillStore, useCategoryStore, useStatisticsStore } from '@/stores/data'
 import { formatMoney, formatDateCN, getWeekday, getMonthRange, getCategoryIcon } from '@/utils/format'
 import dayjs from 'dayjs'
 import MonthPicker from '@/components/MonthPicker.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const billStore = useBillStore()
+const categoryStore = useCategoryStore()
 const statsStore = useStatisticsStore()
 const confirmDialog = ref(null)
 
 const currentMonth = ref(dayjs())
 const showMonthPicker = ref(false)
 const editingBill = ref(null)
-const editForm = ref({ amount: 0, remark: '', bill_date: '' })
+const editForm = ref({ amount: 0, remark: '', bill_date: '', category_id: null })
 const pageRef = ref(null)
 const loadingMore = ref(false)
+
+const categories = computed(() => categoryStore.flatCategories())
 
 const bills = computed(() => billStore.bills)
 const loading = computed(() => billStore.loading)
@@ -202,7 +211,9 @@ function editBill(bill) {
     amount: bill.amount,
     remark: bill.remark,
     bill_date: bill.bill_date,
+    category_id: bill.category_id,
   }
+  categoryStore.fetchCategories()
 }
 
 async function saveBill() {
@@ -418,6 +429,9 @@ onMounted(fetchBills)
   padding: 24px;
   width: 100%;
   max-width: 320px;
+  max-height: 85vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .edit-header {
@@ -464,6 +478,17 @@ onMounted(fetchBills)
   font-size: 14px;
   color: var(--text-primary);
   background: transparent;
+  outline: none;
+}
+
+select.edit-input {
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
 }
 
 .save-btn {
