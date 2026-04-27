@@ -23,16 +23,14 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/accounting/, ''),
           secure: false,
           ws: true,
-          configure: (proxy) => {
-            proxy.on('error', (err) => {
-              console.log('proxy error', err)
-            })
-            proxy.on('proxyReq', (proxyReq, req) => {
-              console.log('proxy:', req.method, req.url, '->', proxyReq.path)
-            })
-          },
         },
       },
+      historyApiFallback: {
+        rewrites: [
+          { from: /^\/accounting$/, to: '/accounting/' },
+        ],
+      },
     },
+    appType: 'spa',
   }
 })
