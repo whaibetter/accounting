@@ -8,7 +8,7 @@ const apiTarget = import.meta.env.VITE_API_TARGET || ''
 
 let baseURL: string
 if (isDev && !apiTarget) {
-  baseURL = '/api/v1'
+  baseURL = '/accounting/api/v1'
 } else if (apiTarget) {
   baseURL = `${apiTarget}/api/v1`
 } else {

@@ -235,7 +235,7 @@ async function saveCategory() {
       await categoryStore.createCategory({
         name: form.value.name,
         icon: form.value.icon,
-        type: form.value.parent_id ? undefined : currentType.value,
+        type: currentType.value,
         parent_id: form.value.parent_id,
       })
     }

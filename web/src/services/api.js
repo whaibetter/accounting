@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: '/accounting/api/v1',
   timeout: 30000,
 })
 
@@ -20,7 +20,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const authStore = useAuthStore()
       authStore.logout()
-      window.location.href = '/login'
+      window.location.href = '/accounting/login'
     }
     return Promise.reject(error)
   }
