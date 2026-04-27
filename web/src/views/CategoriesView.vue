@@ -28,7 +28,7 @@
         <Transition name="slide">
           <div v-if="cat.children && cat.children.length && expandedIds.has(cat.id)" class="sub-cat-list">
             <div v-for="child in cat.children" :key="child.id" class="cat-mgmt-item child">
-              <span class="cmi-icon small">{{ child.icon || '📝' }}</span>
+              <span class="cmi-icon small">{{ getCatIcon(child.icon) }}</span>
               <div class="cmi-info">
                 <span class="cmi-name">{{ child.name }}</span>
               </div>
@@ -209,7 +209,7 @@ function openAddForm() {
 
 function editCategory(cat) {
   editingCategory.value = cat
-  form.value = { name: cat.name, icon: cat.icon || '', parent_id: cat.parent_id }
+  form.value = { name: cat.name, icon: getCatIcon(cat.icon), parent_id: cat.parent_id }
   showForm.value = true
 }
 
