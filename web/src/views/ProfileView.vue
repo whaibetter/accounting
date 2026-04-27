@@ -1,7 +1,15 @@
 <template>
   <div class="page profile-page">
     <div class="profile-header">
-      <div class="avatar-circle">{{ authStore.nickname?.charAt(0) || '👤' }}</div>
+      <div class="avatar-circle">
+        <AvatarUploader
+          v-if="authStore.user?.avatar"
+          :modelValue="authStore.user.avatar"
+          :size="56"
+          @uploaded="onAvatarUploaded"
+        />
+        <span v-else class="avatar-letter">{{ authStore.nickname?.charAt(0) || '👤' }}</span>
+      </div>
       <div class="header-info">
         <div class="profile-name">{{ authStore.nickname || '记账用户' }}</div>
         <div class="profile-desc">@{{ authStore.username }} · 轻松管理你的财务</div>
@@ -75,6 +83,17 @@
         <div class="menu-item last" @click="$router.push('/ai')">
           <div class="menu-icon" style="background: rgba(123, 155, 212, 0.12)">🤖</div>
           <span class="menu-text">AI智能记账</span>
+          <span class="menu-arrow">›</span>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="authStore.user?.is_admin" class="menu-section">
+      <div class="section-label">管理</div>
+      <div class="menu-group card">
+        <div class="menu-item last" @click="$router.push('/admin')">
+          <div class="menu-icon" style="background: rgba(212, 165, 116, 0.15)">🛡️</div>
+          <span class="menu-text">后台管理</span>
           <span class="menu-arrow">›</span>
         </div>
       </div>
@@ -189,6 +208,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useAccountStore } from '@/stores/data'
 import { useThemeStore, THEMES } from '@/stores/theme'
 import { authApi } from '@/services'
+import AvatarUploader from '@/components/AvatarUploader.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -316,6 +336,10 @@ async function submitEditProfile() {
   }
 }
 
+async function onAvatarUploaded(avatarUrl) {
+  await authStore.fetchProfile()
+}
+
 onMounted(() => {
   accountStore.fetchAccounts()
 })
@@ -334,8 +358,8 @@ onMounted(() => {
 }
 
 .avatar-circle {
-  width: 54px;
-  height: 54px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent-lighter), var(--accent-light));
   display: flex;
@@ -343,6 +367,11 @@ onMounted(() => {
   justify-content: center;
   font-size: 26px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar-letter {
+  line-height: 1;
 }
 
 .header-info {

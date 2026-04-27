@@ -17,6 +17,7 @@ const routes = [
       { path: 'statistics', name: 'Statistics', component: () => import('@/views/StatisticsView.vue') },
       { path: 'balance-trend', name: 'BalanceTrend', component: () => import('@/views/BalanceTrendView.vue') },
       { path: 'profile', name: 'Profile', component: () => import('@/views/ProfileView.vue') },
+      { path: 'admin', name: 'Admin', component: () => import('@/views/AdminView.vue'), meta: { requiresAdmin: true } },
     ],
   },
   {
@@ -71,6 +72,8 @@ router.beforeEach((to, from, next) => {
   if (!to.meta.public && !authStore.isLoggedIn) {
     next('/login')
   } else if (to.meta.public && authStore.isLoggedIn && to.name === 'Login') {
+    next('/')
+  } else if (to.meta.requiresAdmin && !authStore.user?.is_admin) {
     next('/')
   } else {
     next()

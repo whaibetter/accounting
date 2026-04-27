@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
 from app.dependencies import require_auth
 from app.middleware import register_middlewares
-from app.routers import account, bill, category, tag, statistics, export, import_data, auth, llm
+from app.routers import account, bill, category, tag, statistics, export, import_data, auth, llm, avatar, admin
 
 SERVER_DIR = Path(__file__).resolve().parent.parent
 ENV = os.getenv("APP_ENV", "development")
@@ -76,6 +76,8 @@ app.include_router(statistics.router)
 app.include_router(export.router)
 app.include_router(import_data.router)
 app.include_router(llm.router)
+app.include_router(avatar.router)
+app.include_router(admin.router)
 
 
 @app.get("/health", tags=["系统"])

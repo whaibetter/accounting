@@ -252,6 +252,8 @@ def get_user_by_id(user_id: int) -> Optional[dict]:
             "avatar": user.avatar,
             "email": user.email,
             "phone": user.phone,
+            "is_admin": user.is_admin,
+            "status": user.status,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
@@ -259,7 +261,7 @@ def get_user_by_id(user_id: int) -> Optional[dict]:
         db.close()
 
 
-def update_user_profile(user_id: int, **kwargs) -> tuple[bool, str]:
+def update_user_profile(user_id: int, admin_mode: bool = False, **kwargs) -> tuple[bool, str]:
     db = SessionLocal()
     try:
         from app.models import User
@@ -267,7 +269,10 @@ def update_user_profile(user_id: int, **kwargs) -> tuple[bool, str]:
         if not user:
             return False, "用户不存在"
 
-        allowed_fields = {"nickname", "avatar", "email", "phone"}
+        if admin_mode:
+            allowed_fields = {"nickname", "avatar", "email", "phone", "is_admin", "status"}
+        else:
+            allowed_fields = {"nickname", "avatar", "email", "phone"}
         for key, value in kwargs.items():
             if key in allowed_fields and value is not None:
                 setattr(user, key, value)

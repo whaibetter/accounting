@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from app.auth import verify_token
+from app.auth import verify_token, get_user_by_id
 
 _security = HTTPBearer(auto_error=False)
 
@@ -34,4 +34,17 @@ async def require_auth(
     except (ValueError, TypeError):
         raise HTTPException(status_code=401, detail="Token无效")
 
+    profile = get_user_by_id(user_id)
+    if profile and profile.get("status") == 0:
+        raise HTTPException(status_code=403, detail="账户已被禁用")
+
+    return user_id
+
+
+async def require_admin(
+    user_id: int = Depends(require_auth),
+) -> int:
+    profile = get_user_by_id(user_id)
+    if not profile or not profile.get("is_admin"):
+        raise HTTPException(status_code=403, detail="需要管理员权限")
     return user_id

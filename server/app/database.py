@@ -34,7 +34,7 @@ def get_db():
 
 
 def init_db():
-    from app.models import User, Account, Category, Tag, Bill, BillTag, SystemConfig  # noqa: F401
+    from app.models import User, Account, Category, Tag, Bill, BillTag, SystemConfig, OperationLog  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
     _migrate_db()
@@ -45,6 +45,7 @@ def init_db():
     db = SessionLocal()
     try:
         _assign_orphan_data_to_admin(db)
+        _ensure_admin_role(db)
         _seed_categories(db)
         _seed_default_account(db)
     finally:
@@ -85,6 +86,19 @@ def _migrate_db():
                 conn.execute(text("ALTER TABLE tag ADD COLUMN user_id INTEGER"))
                 conn.commit()
             logger.info("已为tag表添加user_id列")
+
+    if 'user' in insp.get_table_names():
+        user_columns = [col['name'] for col in insp.get_columns('user')]
+        if 'is_admin' not in user_columns:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE \"user\" ADD COLUMN is_admin INTEGER DEFAULT 0"))
+                conn.commit()
+            logger.info("已为user表添加is_admin列")
+        if 'status' not in user_columns:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE \"user\" ADD COLUMN status INTEGER DEFAULT 1"))
+                conn.commit()
+            logger.info("已为user表添加status列")
 
     if 'account' in insp.get_table_names():
         with engine.connect() as conn:
@@ -213,3 +227,13 @@ def _seed_default_account(db):
     )
     db.add(default)
     db.commit()
+
+
+def _ensure_admin_role(db):
+    from app.models import User
+
+    admin = db.query(User).filter(User.username == "admin").first()
+    if admin and admin.is_admin != 1:
+        admin.is_admin = 1
+        db.commit()
+        logger.info("已将admin用户设置为管理员")

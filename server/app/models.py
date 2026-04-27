@@ -18,6 +18,8 @@ class User(Base):
     avatar = Column(String(200), default="")
     email = Column(String(100), default="")
     phone = Column(String(20), default="")
+    is_admin = Column(Integer, nullable=False, default=0)
+    status = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
@@ -121,3 +123,19 @@ class BillTag(Base):
 
     bill = relationship("Bill", back_populates="tag_links")
     tag = relationship("Tag")
+
+
+class OperationLog(Base):
+    __tablename__ = "operation_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    operator_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    operator_name = Column(String(50), nullable=False)
+    action = Column(String(50), nullable=False)
+    target_type = Column(String(50), default="")
+    target_id = Column(Integer, default=None)
+    detail = Column(String(500), default="")
+    ip_address = Column(String(50), default="")
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+
+    operator = relationship("User")
