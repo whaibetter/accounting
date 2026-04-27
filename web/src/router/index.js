@@ -68,9 +68,9 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
-  if (!to.meta.public && !authStore.isAuthenticated) {
+  if (!to.meta.public && !authStore.isLoggedIn) {
     next('/login')
-  } else if (to.meta.public && authStore.isAuthenticated && to.name === 'Login') {
+  } else if (to.meta.public && authStore.isLoggedIn && to.name === 'Login') {
     next('/')
   } else {
     next()

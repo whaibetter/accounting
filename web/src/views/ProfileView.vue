@@ -1,11 +1,12 @@
 <template>
   <div class="page profile-page">
     <div class="profile-header">
-      <div class="avatar-circle">👤</div>
+      <div class="avatar-circle">{{ authStore.nickname?.charAt(0) || '👤' }}</div>
       <div class="header-info">
-        <div class="profile-name">记账用户</div>
-        <div class="profile-desc">轻松管理你的财务</div>
+        <div class="profile-name">{{ authStore.nickname || '记账用户' }}</div>
+        <div class="profile-desc">@{{ authStore.username }} · 轻松管理你的财务</div>
       </div>
+      <div class="edit-profile-btn" @click="showEditProfile = true">编辑</div>
     </div>
 
     <div class="asset-overview card">
@@ -134,6 +135,33 @@
       </div>
     </div>
 
+    <div v-if="showEditProfile" class="modal-overlay" @click="showEditProfile = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>编辑个人信息</h3>
+          <span class="modal-close" @click="showEditProfile = false">✕</span>
+        </div>
+        <div class="form-group">
+          <label>昵称</label>
+          <input type="text" v-model="profileForm.nickname" placeholder="输入昵称" />
+        </div>
+        <div class="form-group">
+          <label>邮箱</label>
+          <input type="email" v-model="profileForm.email" placeholder="输入邮箱" />
+        </div>
+        <div class="form-group">
+          <label>手机号</label>
+          <input type="tel" v-model="profileForm.phone" placeholder="输入手机号" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showEditProfile = false">取消</button>
+          <button class="btn-primary" @click="submitEditProfile" :disabled="isSubmitting">
+            {{ isSubmitting ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="showLogoutConfirm" class="modal-overlay" @click="showLogoutConfirm = false">
       <div class="confirm-content" @click.stop>
         <div class="confirm-icon">🚪</div>
@@ -170,12 +198,19 @@ const themeStore = useThemeStore()
 const showAmount = ref(true)
 const showChangePasswordModal = ref(false)
 const showLogoutConfirm = ref(false)
+const showEditProfile = ref(false)
 const oldPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const isSubmitting = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
+
+const profileForm = ref({
+  nickname: authStore.user?.nickname || '',
+  email: authStore.user?.email || '',
+  phone: authStore.user?.phone || '',
+})
 
 const totalAssets = computed(() => accountStore.totalAssets())
 const totalDebts = computed(() => accountStore.totalDebts())
@@ -263,6 +298,24 @@ function confirmLogout() {
   router.push('/login')
 }
 
+async function submitEditProfile() {
+  isSubmitting.value = true
+  try {
+    await authStore.updateProfile({
+      nickname: profileForm.value.nickname || null,
+      email: profileForm.value.email || null,
+      phone: profileForm.value.phone || null,
+    })
+    showEditProfile.value = false
+    showToast('个人信息更新成功')
+  } catch (e) {
+    const msg = e.response?.data?.detail || e.message || '更新失败'
+    showToast(msg, 'error')
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
 onMounted(() => {
   accountStore.fetchAccounts()
 })
@@ -306,6 +359,23 @@ onMounted(() => {
   font-size: 13px;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+.edit-profile-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 4px 12px;
+  border: 1.5px solid var(--accent);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.edit-profile-btn:active {
+  background: var(--accent);
+  color: white;
 }
 
 .asset-overview {

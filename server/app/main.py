@@ -68,14 +68,14 @@ app.add_middleware(
 register_middlewares(app)
 
 app.include_router(auth.router)
-app.include_router(account.router, dependencies=[Depends(require_auth)])
-app.include_router(bill.router, dependencies=[Depends(require_auth)])
-app.include_router(category.router, dependencies=[Depends(require_auth)])
-app.include_router(tag.router, dependencies=[Depends(require_auth)])
-app.include_router(statistics.router, dependencies=[Depends(require_auth)])
-app.include_router(export.router, dependencies=[Depends(require_auth)])
-app.include_router(import_data.router, dependencies=[Depends(require_auth)])
-app.include_router(llm.router, dependencies=[Depends(require_auth)])
+app.include_router(account.router)
+app.include_router(bill.router)
+app.include_router(category.router)
+app.include_router(tag.router)
+app.include_router(statistics.router)
+app.include_router(export.router)
+app.include_router(import_data.router)
+app.include_router(llm.router)
 
 
 @app.get("/health", tags=["系统"])

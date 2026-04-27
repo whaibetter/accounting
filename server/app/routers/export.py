@@ -1,21 +1,3 @@
-"""
-数据导出API路由模块。
-
-功能描述：
-    提供账单数据导出接口，支持：
-    - 导出为Excel格式 (.xlsx)
-    - 导出为JSON格式
-
-接口列表：
-    GET /api/v1/export/excel    导出Excel
-    GET /api/v1/export/json     导出JSON
-
-导出规则：
-    - 支持按时间范围筛选
-    - Excel包含完整的账单信息（日期、类型、分类、账户、金额、备注、标签）
-    - JSON格式与API响应格式一致
-"""
-
 import io
 import json
 from datetime import date
@@ -28,33 +10,19 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import crud
+from app.dependencies import require_auth
 
-router = APIRouter(prefix="/api/v1/export", tags=["数据导出"])
+router = APIRouter(prefix="/api/v1/export", tags=["数据导出"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/excel", summary="导出Excel")
 def export_excel(
     start_date: Optional[date] = Query(None, description="开始日期"),
     end_date: Optional[date] = Query(None, description="结束日期"),
+    user_id: int = Depends(require_auth),
     db: Session = Depends(get_db),
 ):
-    """
-    导出账单数据为Excel文件。
-
-    生成包含以下列的Excel文件：
-    日期 | 类型 | 分类 | 账户 | 金额 | 备注 | 标签
-
-    Args:
-        start_date: 开始日期 (可选，不传则从最早记录开始)
-        end_date: 结束日期 (可选，不传则到最新记录)
-
-    Returns:
-        StreamingResponse: Excel文件流
-
-    示例:
-        GET /api/v1/export/excel?start_date=2026-04-01&end_date=2026-04-30
-    """
-    result = crud.get_bills(db, page=1, size=99999,
+    result = crud.get_bills(db, user_id, page=1, size=99999,
                             start_date=start_date, end_date=end_date)
     bills = result["items"]
 
@@ -96,24 +64,10 @@ def export_excel(
 def export_json(
     start_date: Optional[date] = Query(None, description="开始日期"),
     end_date: Optional[date] = Query(None, description="结束日期"),
+    user_id: int = Depends(require_auth),
     db: Session = Depends(get_db),
 ):
-    """
-    导出账单数据为JSON文件。
-
-    JSON格式与API响应格式一致，包含完整的账单信息。
-
-    Args:
-        start_date: 开始日期 (可选)
-        end_date: 结束日期 (可选)
-
-    Returns:
-        StreamingResponse: JSON文件流
-
-    示例:
-        GET /api/v1/export/json?start_date=2026-04-01&end_date=2026-04-30
-    """
-    result = crud.get_bills(db, page=1, size=99999,
+    result = crud.get_bills(db, user_id, page=1, size=99999,
                             start_date=start_date, end_date=end_date)
     bills = result["items"]
 

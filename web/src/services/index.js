@@ -1,8 +1,17 @@
 import api from './api'
 
 export const authApi = {
-  login(password) {
-    return api.post('/auth/login', { password })
+  login(username, password) {
+    return api.post('/auth/login', { username, password })
+  },
+  register(username, password) {
+    return api.post('/auth/register', { username, password })
+  },
+  getProfile() {
+    return api.get('/auth/profile')
+  },
+  updateProfile(data) {
+    return api.put('/auth/profile', data)
   },
   changePassword(data) {
     return api.post('/auth/change-password', data)

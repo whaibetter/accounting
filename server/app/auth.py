@@ -1,21 +1,5 @@
-"""
-认证与密码管理模块。
-
-功能描述：
-    - 使用 bcrypt 算法进行密码哈希与验证
-    - 密码和 JWT 密钥存储在数据库 system_config 表中
-    - 支持密码创建、验证、更新操作
-    - 提供密码强度校验
-    - 记录密码操作审计日志
-
-迁移说明：
-    - 旧版使用 SHA-256（无盐）+ 文件存储，已废弃
-    - 首次启动时自动从旧文件迁移密码到数据库
-"""
-
 import bcrypt
 import logging
-import os
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -30,11 +14,7 @@ logger = logging.getLogger("auth")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE_DAYS = 7
 
-_PASSWORD_KEY = "password_hash"
 _SECRET_KEY_NAME = "jwt_secret_key"
-
-_LEGACY_PASSWORD_FILE = os.path.join(os.path.dirname(__file__), "..", "data", ".access_password")
-_LEGACY_SECRET_FILE = os.path.join(os.path.dirname(__file__), "..", "data", ".secret_key")
 
 
 def _get_config_value(key: str) -> Optional[str]:
@@ -75,49 +55,6 @@ def _verify_bcrypt(password: str, hashed: str) -> bool:
         return False
 
 
-def _verify_legacy_sha256(password: str, hashed: str) -> bool:
-    import hashlib
-    return hashlib.sha256(password.encode("utf-8")).hexdigest() == hashed
-
-
-def _migrate_from_files() -> None:
-    if os.path.exists(_LEGACY_PASSWORD_FILE):
-        try:
-            with open(_LEGACY_PASSWORD_FILE, "r") as f:
-                old_hash = f.read().strip()
-            if old_hash and not _get_config_value(_PASSWORD_KEY):
-                _set_config_value(_PASSWORD_KEY, f"sha256:{old_hash}")
-                logger.info("已从旧文件迁移密码哈希到数据库（SHA-256 格式，将在下次修改密码时自动升级为 bcrypt）")
-            os.rename(_LEGACY_PASSWORD_FILE, _LEGACY_PASSWORD_FILE + ".bak")
-            logger.info("旧密码文件已备份为 .access_password.bak")
-        except Exception as e:
-            logger.warning(f"迁移旧密码文件失败: {e}")
-
-    if os.path.exists(_LEGACY_SECRET_FILE):
-        try:
-            with open(_LEGACY_SECRET_FILE, "r") as f:
-                old_key = f.read().strip()
-            if old_key and not _get_config_value(_SECRET_KEY_NAME):
-                _set_config_value(_SECRET_KEY_NAME, old_key)
-                logger.info("已从旧文件迁移 JWT 密钥到数据库")
-            os.rename(_LEGACY_SECRET_FILE, _LEGACY_SECRET_FILE + ".bak")
-            logger.info("旧密钥文件已备份为 .secret_key.bak")
-        except Exception as e:
-            logger.warning(f"迁移旧密钥文件失败: {e}")
-
-
-def _init_password() -> None:
-    if _get_config_value(_PASSWORD_KEY) is not None:
-        return
-    plain = secrets.token_hex(4)
-    hashed = _hash_password(plain)
-    _set_config_value(_PASSWORD_KEY, hashed)
-    logger.info(f"系统访问密码已自动生成: {plain}")
-    logger.info("请妥善保管此密码，它不会再次显示")
-    print(f"\n[auth] 系统访问密码已自动生成: {plain}")
-    print("[auth] 请妥善保管此密码，它不会再次显示\n")
-
-
 def _init_secret_key() -> None:
     if _get_config_value(_SECRET_KEY_NAME) is not None:
         return
@@ -126,9 +63,8 @@ def _init_secret_key() -> None:
 
 
 def init_auth() -> None:
-    _migrate_from_files()
-    _init_password()
     _init_secret_key()
+    _migrate_legacy_data()
 
 
 def get_secret_key() -> str:
@@ -139,19 +75,76 @@ def get_secret_key() -> str:
     return key
 
 
-def verify_password(password: str) -> bool:
-    stored = _get_config_value(_PASSWORD_KEY)
-    if not stored:
-        return False
-    if stored.startswith("sha256:"):
-        legacy_hash = stored[7:]
-        if _verify_legacy_sha256(password, legacy_hash):
-            new_hash = _hash_password(password)
-            _set_config_value(_PASSWORD_KEY, new_hash)
-            logger.info("密码已从 SHA-256 自动升级为 bcrypt")
-            return True
-        return False
-    return _verify_bcrypt(password, stored)
+def _migrate_legacy_data() -> None:
+    import os
+    legacy_password_file = os.path.join(os.path.dirname(__file__), "..", "data", ".access_password")
+    legacy_secret_file = os.path.join(os.path.dirname(__file__), "..", "data", ".secret_key")
+
+    if os.path.exists(legacy_password_file):
+        try:
+            with open(legacy_password_file, "r") as f:
+                old_hash = f.read().strip()
+            if old_hash:
+                db = SessionLocal()
+                try:
+                    from app.models import User
+                    existing = db.query(User).first()
+                    if not existing:
+                        user = User(
+                            username="admin",
+                            password_hash=old_hash if old_hash.startswith("$2b$") else f"sha256:{old_hash}",
+                            nickname="管理员",
+                        )
+                        db.add(user)
+                        db.commit()
+                        logger.info("已从旧密码文件迁移为默认admin用户")
+                finally:
+                    db.close()
+            os.replace(legacy_password_file, legacy_password_file + ".bak")
+        except Exception as e:
+            logger.warning(f"迁移旧密码文件失败: {e}")
+
+    if os.path.exists(legacy_secret_file):
+        try:
+            with open(legacy_secret_file, "r") as f:
+                old_key = f.read().strip()
+            if old_key and not _get_config_value(_SECRET_KEY_NAME):
+                _set_config_value(_SECRET_KEY_NAME, old_key)
+            os.replace(legacy_secret_file, legacy_secret_file + ".bak")
+        except Exception as e:
+            logger.warning(f"迁移旧密钥文件失败: {e}")
+
+    db = SessionLocal()
+    try:
+        from app.models import SystemConfig
+        stored = db.query(SystemConfig).filter(SystemConfig.key == "password_hash").first()
+        if stored:
+            existing_user = db.query(User).filter(User.username == "admin").first()
+            if not existing_user:
+                user = User(
+                    username="admin",
+                    password_hash=stored.value,
+                    nickname="管理员",
+                )
+                db.add(user)
+                db.commit()
+                logger.info("已从system_config迁移密码为默认admin用户")
+            db.delete(stored)
+            db.commit()
+    except Exception as e:
+        logger.warning(f"迁移system_config密码失败: {e}")
+    finally:
+        db.close()
+
+
+def check_username(username: str) -> tuple[bool, str]:
+    if not username or len(username) < 3:
+        return False, "用户名长度不能少于3位"
+    if len(username) > 50:
+        return False, "用户名长度不能超过50位"
+    if not re.match(r"^[a-zA-Z0-9_]+$", username):
+        return False, "用户名只能包含字母、数字和下划线"
+    return True, ""
 
 
 def check_password_strength(password: str) -> tuple[bool, str]:
@@ -168,34 +161,68 @@ def check_password_strength(password: str) -> tuple[bool, str]:
     return True, ""
 
 
-def change_password(old_password: str, new_password: str) -> tuple[bool, str]:
-    if not verify_password(old_password):
-        return False, "旧密码错误"
-    valid, msg = check_password_strength(new_password)
+def register_user(username: str, password: str) -> tuple[Optional[int], str]:
+    valid, msg = check_username(username)
     if not valid:
-        return False, msg
-    if old_password == new_password:
-        return False, "新密码不能与旧密码相同"
-    hashed = _hash_password(new_password)
-    _set_config_value(_PASSWORD_KEY, hashed)
-    logger.info("密码已修改（bcrypt 哈希）")
-    return True, "密码修改成功"
-
-
-def reset_password(new_password: str) -> tuple[bool, str]:
-    valid, msg = check_password_strength(new_password)
+        return None, msg
+    valid, msg = check_password_strength(password)
     if not valid:
-        return False, msg
-    hashed = _hash_password(new_password)
-    _set_config_value(_PASSWORD_KEY, hashed)
-    logger.info("密码已由管理员重置（bcrypt 哈希）")
-    return True, "密码重置成功"
+        return None, msg
+
+    db = SessionLocal()
+    try:
+        from app.models import User
+        existing = db.query(User).filter(User.username == username).first()
+        if existing:
+            return None, "用户名已存在"
+        hashed = _hash_password(password)
+        user = User(username=username, password_hash=hashed, nickname=username)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        logger.info(f"新用户注册: {username}")
+        return user.id, "注册成功"
+    except Exception as e:
+        db.rollback()
+        logger.error(f"注册失败: {e}")
+        return None, "注册失败"
+    finally:
+        db.close()
 
 
-def create_access_token() -> str:
+def authenticate_user(username: str, password: str) -> tuple[Optional[int], str]:
+    if not username or not password:
+        return None, "请输入用户名和密码"
+
+    db = SessionLocal()
+    try:
+        from app.models import User
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            return None, "用户名或密码错误"
+
+        stored = user.password_hash
+        if stored.startswith("sha256:"):
+            import hashlib
+            legacy_hash = stored[7:]
+            if hashlib.sha256(password.encode("utf-8")).hexdigest() == legacy_hash:
+                user.password_hash = _hash_password(password)
+                db.commit()
+                logger.info(f"用户 {username} 密码已从SHA-256升级为bcrypt")
+                return user.id, "登录成功"
+            return None, "用户名或密码错误"
+
+        if _verify_bcrypt(password, stored):
+            return user.id, "登录成功"
+        return None, "用户名或密码错误"
+    finally:
+        db.close()
+
+
+def create_access_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_EXPIRE_DAYS)
     return jwt.encode(
-        {"sub": "user", "exp": expire, "type": "access"},
+        {"sub": str(user_id), "exp": expire, "type": "access"},
         get_secret_key(),
         algorithm=ALGORITHM,
     )
@@ -209,3 +236,81 @@ def verify_token(token: str, token_type: str = "access") -> Optional[str]:
         return payload.get("sub")
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
+
+
+def get_user_by_id(user_id: int) -> Optional[dict]:
+    db = SessionLocal()
+    try:
+        from app.models import User
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None
+        return {
+            "id": user.id,
+            "username": user.username,
+            "nickname": user.nickname,
+            "avatar": user.avatar,
+            "email": user.email,
+            "phone": user.phone,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+        }
+    finally:
+        db.close()
+
+
+def update_user_profile(user_id: int, **kwargs) -> tuple[bool, str]:
+    db = SessionLocal()
+    try:
+        from app.models import User
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False, "用户不存在"
+
+        allowed_fields = {"nickname", "avatar", "email", "phone"}
+        for key, value in kwargs.items():
+            if key in allowed_fields and value is not None:
+                setattr(user, key, value)
+
+        db.commit()
+        return True, "更新成功"
+    except Exception as e:
+        db.rollback()
+        return False, f"更新失败: {str(e)}"
+    finally:
+        db.close()
+
+
+def change_user_password(user_id: int, old_password: str, new_password: str) -> tuple[bool, str]:
+    db = SessionLocal()
+    try:
+        from app.models import User
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False, "用户不存在"
+
+        stored = user.password_hash
+        if stored.startswith("sha256:"):
+            import hashlib
+            legacy_hash = stored[7:]
+            if hashlib.sha256(old_password.encode("utf-8")).hexdigest() != legacy_hash:
+                return False, "旧密码错误"
+        else:
+            if not _verify_bcrypt(old_password, stored):
+                return False, "旧密码错误"
+
+        valid, msg = check_password_strength(new_password)
+        if not valid:
+            return False, msg
+        if old_password == new_password:
+            return False, "新密码不能与旧密码相同"
+
+        user.password_hash = _hash_password(new_password)
+        db.commit()
+        logger.info(f"用户ID {user_id} 修改密码成功")
+        return True, "密码修改成功"
+    except Exception as e:
+        db.rollback()
+        return False, f"修改密码失败: {str(e)}"
+    finally:
+        db.close()
