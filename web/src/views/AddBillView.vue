@@ -39,7 +39,7 @@
             :class="{ active: form.category_id === cat.id }"
             @click="selectCategory(cat)"
           >
-            <span class="cat-icon">{{ iconMap[String(cat.id)] || iconMap[String(Math.floor(cat.id / 10) * 10)] || '📌' }}</span>
+            <span class="cat-icon">{{ getCatIcon(cat.icon) }}</span>
             <span class="cat-name">{{ cat.name }}</span>
           </button>
         </div>
@@ -93,7 +93,7 @@
             :class="{ active: form.tag_ids.includes(tag.id) }"
             :style="form.tag_ids.includes(tag.id) ? { background: tag.color + '22', color: tag.color, borderColor: tag.color } : {}"
             @click="toggleTag(tag.id)"
-          >{{ tag.name }}</button>
+          >{{ getTagIcon(tag.icon) }} {{ tag.name }}</button>
         </div>
       </div>
     </div>
@@ -109,15 +109,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { billApi, type Category } from '@/api/types'
 import { useDataStore } from '@/stores/data'
+import { getCategoryIcon, getTagIcon } from '@/utils/format'
 
 const router = useRouter()
 const store = useDataStore()
 const amountRef = ref<HTMLInputElement | null>(null)
 
-const iconMap: Record<string, string> = {
-  '1': '🍜', '2': '🚌', '3': '🛒', '4': '🏠', '5': '🎮',
-  '6': '🏥', '7': '📚', '8': '📱', '9': '🎁', '10': '📌',
-  '46': '💰', '47': '💼', '48': '📈', '49': '🧧', '50': '↩️', '51': '📌',
+function getCatIcon(icon) {
+  return getCategoryIcon(icon)
 }
 
 const types = [

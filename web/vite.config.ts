@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
-    base: '/accountig/',
+    base: '/accounting/',
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),
@@ -17,10 +17,10 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       proxy: {
-        '/accountig/api': {
+        '/accounting/api': {
           target: apiTarget,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/accountig/, ''),
+          rewrite: (path) => path.replace(/^\/accounting/, ''),
           secure: false,
           ws: true,
           configure: (proxy) => {

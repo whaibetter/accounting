@@ -1,6 +1,7 @@
 :root {
   --bg-primary: #FAF7F2;
   --bg-card: #ffffff;
+  --bg-card-alpha: rgba(255, 255, 255, 0.92);
   --bg-input: #f5f1ea;
   --bg-tab: #f0ebe3;
   --bg-sidebar: #EDE8DF;
@@ -22,6 +23,11 @@
   --radius-xs: 8px;
   --nav-height: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-theme-mode="dark"] {
+  --bg-card-alpha: rgba(37, 34, 32, 0.92);
+  --bg-sidebar: #121010;
 }
 
 * {
@@ -130,7 +136,7 @@ input, select, textarea {
 .section-title {
   font-size: 13px;
   font-weight: 700;
-  color: #555;
+  color: var(--text-secondary);
   margin-bottom: 12px;
   letter-spacing: 0.5px;
 }
@@ -164,7 +170,7 @@ input, select, textarea {
 
 .month-picker {
   font-size: 14px;
-  color: #777;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 4px;

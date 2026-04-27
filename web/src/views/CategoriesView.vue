@@ -60,7 +60,7 @@
           </div>
           <div class="form-field">
             <label>图标 (Emoji)</label>
-            <input v-model="form.icon" type="text" placeholder="如 🍜 🛒 🚌" class="form-input" />
+            <EmojiPicker v-model="form.icon" />
           </div>
           <div class="form-field">
             <label>父分类</label>
@@ -147,6 +147,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useCategoryStore } from '@/stores/data'
 import CustomSelect from '@/components/CustomSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 import { getCategoryIcon } from '@/utils/format'
 import { categoryApi } from '@/services'
 

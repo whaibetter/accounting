@@ -47,7 +47,7 @@ if not exist "node_modules" (
     npm install
 )
 start "记账软件前端" cmd /k "npm run dev"
-echo       前端服务启动中... (http://localhost:3000/accountig/)
+echo       前端服务启动中... (http://localhost:3000/accounting/)
 
 :: 等待前端启动
 echo.
@@ -59,7 +59,7 @@ echo =========================================
 echo   本地开发环境已启动！
 echo =========================================
 echo.
-echo   前端: http://localhost:3000/accountig/
+echo   前端: http://localhost:3000/accounting/
 echo   后端: http://127.0.0.1:8000
 echo   API文档: http://127.0.0.1:8000/docs
 echo.
@@ -68,6 +68,6 @@ echo =========================================
 echo.
 
 :: 打开浏览器
-start http://localhost:3000/accountig/
+start http://localhost:3000/accounting/
 
 pause

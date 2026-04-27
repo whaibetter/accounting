@@ -49,7 +49,7 @@ def _bill_to_out(bill: Bill) -> schemas.BillOut:
         BillOut: 包含账户名称、分类名称、标签列表的完整账单响应
     """
     tags = [
-        schemas.TagBrief(id=link.tag.id, name=link.tag.name, color=link.tag.color)
+        schemas.TagBrief(id=link.tag.id, name=link.tag.name, icon=link.tag.icon or "", color=link.tag.color)
         for link in bill.tag_links
     ]
     return schemas.BillOut(

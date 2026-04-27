@@ -71,15 +71,13 @@ const currentRoute = computed(() => route.name)
   display: flex;
   justify-content: space-around;
   align-items: flex-end;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--bg-card-alpha, rgba(255, 255, 255, 0.92));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-radius: 20px;
   padding: 8px 4px 10px;
-  box-shadow:
-    0 -2px 16px rgba(140, 120, 80, 0.08),
-    0 4px 24px rgba(140, 120, 80, 0.06);
-  border: 0.5px solid rgba(200, 180, 150, 0.15);
+  box-shadow: var(--shadow-lg);
+  border: 0.5px solid var(--border);
   pointer-events: auto;
 }
 
@@ -136,7 +134,7 @@ const currentRoute = computed(() => route.name)
   align-items: center;
   justify-content: center;
   margin-top: -18px;
-  box-shadow: 0 4px 14px rgba(196, 148, 99, 0.4);
+  box-shadow: 0 4px 14px rgba(196, 148, 99, 0.25);
   cursor: pointer;
   transition: all 0.25s ease;
 }

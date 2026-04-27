@@ -343,7 +343,7 @@ def get_tag(db: Session, tag_id: int) -> Optional[Tag]:
     return db.query(Tag).filter(Tag.id == tag_id).first()
 
 
-def create_tag(db: Session, name: str, color: str = "") -> Tag:
+def create_tag(db: Session, name: str, color: str = "", icon: str = "") -> Tag:
     """
     创建标签。
 
@@ -351,6 +351,7 @@ def create_tag(db: Session, name: str, color: str = "") -> Tag:
         db: 数据库会话
         name: 标签名称 (唯一)
         color: 颜色标识
+        icon: 图标标识
 
     Returns:
         Tag: 新创建的标签对象
@@ -362,7 +363,7 @@ def create_tag(db: Session, name: str, color: str = "") -> Tag:
     if existing:
         raise ValueError(f"标签 '{name}' 已存在")
 
-    tag = Tag(name=name, color=color)
+    tag = Tag(name=name, color=color, icon=icon)
     db.add(tag)
     db.commit()
     db.refresh(tag)

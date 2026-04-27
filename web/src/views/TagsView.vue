@@ -12,6 +12,7 @@
         <div class="text">暂无标签</div>
       </div>
       <div v-for="tag in tags" :key="tag.id" class="tag-item">
+        <span class="tag-icon">{{ getTagIcon(tag.icon) }}</span>
         <div class="tag-dot" :style="{ background: tag.color || '#d4a574' }"></div>
         <span class="tag-name">{{ tag.name }}</span>
         <div class="tag-actions">
@@ -32,6 +33,10 @@
           <div class="form-field">
             <label>标签名称</label>
             <input v-model="form.name" type="text" placeholder="请输入标签名称" class="form-input" />
+          </div>
+          <div class="form-field">
+            <label>图标</label>
+            <EmojiPicker v-model="form.icon" />
           </div>
           <div class="form-field">
             <label>颜色</label>
@@ -64,27 +69,29 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTagStore } from '@/stores/data'
+import { getTagIcon } from '@/utils/format'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const tagStore = useTagStore()
 const confirmDialog = ref(null)
 
 const showAddForm = ref(false)
 const editingTag = ref(null)
-const form = ref({ name: '', color: '#d4a574' })
+const form = ref({ name: '', icon: '', color: '#d4a574' })
 
 const colorOptions = ['#d4a574', '#7cafd4', '#7bc97b', '#d47b7b', '#a07bd4', '#c4b896', '#7b9bd4', '#e8c99a']
 const tags = computed(() => tagStore.tags)
 
 function editTag(tag) {
   editingTag.value = tag
-  form.value = { name: tag.name, color: tag.color || '#d4a574' }
+  form.value = { name: tag.name, icon: tag.icon || '', color: tag.color || '#d4a574' }
 }
 
 function closeForm() {
   showAddForm.value = false
   editingTag.value = null
-  form.value = { name: '', color: '#d4a574' }
+  form.value = { name: '', icon: '', color: '#d4a574' }
 }
 
 async function saveTag() {
@@ -143,6 +150,11 @@ onMounted(() => tagStore.fetchTags())
 
 .tag-item:last-child {
   border-bottom: none;
+}
+
+.tag-icon {
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .tag-dot {

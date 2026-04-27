@@ -130,6 +130,7 @@ class Tag(Base):
     Attributes:
         id: 主键，自增
         name: 标签名称 (唯一)
+        icon: 图标标识
         color: 颜色标识
         created_at: 创建时间
     """
@@ -137,6 +138,7 @@ class Tag(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(50), nullable=False, unique=True)
+    icon = Column(String(50), default="")
     color = Column(String(20), default="")
     created_at = Column(DateTime, nullable=False, default=datetime.now)
 

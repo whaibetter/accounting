@@ -249,7 +249,7 @@ onMounted(fetchConfig)
 
 .config-label {
   font-size: 13px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .config-value {
@@ -287,7 +287,7 @@ onMounted(fetchConfig)
 
 .form-field label {
   font-size: 13px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .form-textarea {
@@ -314,7 +314,7 @@ onMounted(fetchConfig)
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 0.5px solid #f0ece5;
+  border-bottom: 0.5px solid var(--border);
   font-size: 13px;
 }
 
@@ -338,7 +338,7 @@ onMounted(fetchConfig)
 }
 
 .parsed-remark {
-  color: #999;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -350,7 +350,7 @@ onMounted(fetchConfig)
 
 .result-label {
   font-size: 14px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .result-value {
@@ -405,7 +405,7 @@ onMounted(fetchConfig)
 
 .close-btn {
   font-size: 18px;
-  color: #bbb;
+  color: var(--text-muted);
   cursor: pointer;
 }
 

@@ -240,7 +240,7 @@ onMounted(async () => {
 
 .close-btn {
   font-size: 18px;
-  color: #bbb;
+  color: var(--text-muted);
   cursor: pointer;
   width: 24px;
 }
@@ -321,7 +321,7 @@ onMounted(async () => {
 
 .cat-name {
   font-size: 11px;
-  color: #888;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -337,13 +337,13 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   padding: 10px 4px;
-  border-bottom: 0.5px solid #f0ece5;
+  border-bottom: 0.5px solid var(--border);
 }
 
 .form-row label {
   width: 52px;
   font-size: 13px;
-  color: #888;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -360,7 +360,7 @@ onMounted(async () => {
 .keypad-area {
   margin-top: auto;
   padding: 8px 16px 28px;
-  background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.6) 15%);
+  background: linear-gradient(to bottom, transparent 0%, var(--bg-card-alpha, rgba(255,255,255,0.6)) 15%);
 }
 
 .display-amount {
@@ -396,22 +396,22 @@ onMounted(async () => {
 }
 
 .key-btn.num {
-  background: #faf8f3;
+  background: var(--bg-input);
   color: var(--text-primary);
 }
 
 .key-btn.num:active {
-  background: #ede7dc;
+  background: var(--bg-tab);
 }
 
 .key-btn.op {
-  background: #f2ebe0;
-  color: #999;
+  background: var(--bg-tab);
+  color: var(--text-muted);
   font-size: 15px;
 }
 
 .key-btn.op:active {
-  background: #e8dfd0;
+  background: var(--bg-input);
 }
 
 .key-btn.confirm {

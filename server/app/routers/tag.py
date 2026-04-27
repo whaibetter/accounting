@@ -59,7 +59,7 @@ def create_tag(tag: schemas.TagCreate, db: Session = Depends(get_db)):
         HTTPException 400: 标签名称已存在
     """
     try:
-        new_tag = crud.create_tag(db, name=tag.name, color=tag.color)
+        new_tag = crud.create_tag(db, name=tag.name, color=tag.color, icon=tag.icon)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return schemas.ApiResponse(data=schemas.TagOut.model_validate(new_tag))

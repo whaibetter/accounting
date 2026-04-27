@@ -75,7 +75,7 @@ server {
     listen [::]:80;
     server_name _;
 
-    location /accountig/api/ {
+    location /accounting/api/ {
         proxy_pass http://127.0.0.1:8000/api/;
         proxy_set_header Host `$host;
         proxy_set_header X-Real-IP `$remote_addr;
@@ -84,10 +84,10 @@ server {
         proxy_read_timeout 60s;
     }
 
-    location /accountig/ {
+    location /accounting/ {
         alias $REMOTE_FRONTEND_PATH/;
         index index.html;
-        try_files `$uri `$uri/ /accountig/index.html;
+        try_files `$uri `$uri/ /accounting/index.html;
     }
 }
 "@
@@ -108,7 +108,7 @@ if ($health -match '"ok"') {
     Write-Host "  ✗ 后端健康检查失败: $health" -ForegroundColor Red
 }
 
-$frontend = & ssh @SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "curl -s -o /dev/null -w '%{http_code}' http://localhost/accountig/"
+$frontend = & ssh @SSH_OPTS "$REMOTE_USER@$REMOTE_HOST" "curl -s -o /dev/null -w '%{http_code}' http://localhost/accounting/"
 if ($frontend -eq "200") {
     Write-Host "  ✓ 前端页面访问正常 (HTTP $frontend)" -ForegroundColor Green
 } else {
@@ -118,7 +118,7 @@ if ($frontend -eq "200") {
 Write-Host ""
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "  部署完成！" -ForegroundColor Cyan
-Write-Host "  前端: http://$REMOTE_HOST/accountig/" -ForegroundColor Yellow
+Write-Host "  前端: http://$REMOTE_HOST/accounting/" -ForegroundColor Yellow
 Write-Host "  后端: http://$REMOTE_HOST:8000" -ForegroundColor Yellow
 Write-Host "  健康检查: http://$REMOTE_HOST:8000/health" -ForegroundColor Yellow
 Write-Host "=========================================" -ForegroundColor Cyan

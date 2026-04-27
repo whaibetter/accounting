@@ -189,7 +189,7 @@ const currentThemeName = computed(() => {
 
 const passwordStrength = computed(() => {
   const pw = newPassword.value
-  if (!pw) return { percent: 0, color: '#ddd', text: '' }
+  if (!pw) return { percent: 0, color: 'var(--text-muted)', text: '' }
   let score = 0
   if (pw.length >= 6) score += 25
   if (pw.length >= 10) score += 25

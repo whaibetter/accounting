@@ -21,7 +21,7 @@
       <div class="section-title">资产账户</div>
       <div class="account-list">
         <div v-for="acc in activeAccounts" :key="acc.id" class="acct-item">
-          <div class="acct-dot" :style="{ background: getAccountTypeColor(acc.type) }"></div>
+          <span class="acct-icon">{{ getAccIcon(acc.icon) }}</span>
           <span class="acct-name">{{ acc.name }}</span>
           <span class="acct-amt">{{ showAmount ? '¥ ' + formatMoney(acc.balance) : '****' }}</span>
         </div>
@@ -34,7 +34,7 @@
         <button class="add-btn" @click="showAddForm = true">+ 新增</button>
       </div>
       <div v-for="acc in accounts" :key="acc.id" class="acct-manage-item">
-        <div class="acct-dot" :style="{ background: getAccountTypeColor(acc.type) }"></div>
+        <span class="acct-icon">{{ getAccIcon(acc.icon) }}</span>
         <div class="acct-info">
           <span class="acct-name">{{ acc.name }}</span>
           <span class="acct-type">{{ getAccountTypeName(acc.type) }}</span>
@@ -57,6 +57,10 @@
           <div class="form-field">
             <label>账户名称</label>
             <input v-model="form.name" type="text" placeholder="请输入账户名称" class="form-input" />
+          </div>
+          <div class="form-field">
+            <label>账户图标</label>
+            <EmojiPicker v-model="form.icon" />
           </div>
           <div class="form-field">
             <label>账户类型</label>
@@ -93,9 +97,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAccountStore } from '@/stores/data'
-import { formatMoney, getAccountTypeName, getAccountTypeColor } from '@/utils/format'
+import { formatMoney, getAccountTypeName, getAccountTypeColor, getAccountIcon } from '@/utils/format'
 import CustomSelect from '@/components/CustomSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const accountStore = useAccountStore()
 const confirmDialog = ref(null)
@@ -112,7 +117,7 @@ const accountTypeOptions = [
 const showAmount = ref(true)
 const showAddForm = ref(false)
 const editingAccount = ref(null)
-const form = ref({ name: '', type: 1, initial_balance: 0, is_default: false })
+const form = ref({ name: '', type: 1, icon: '', initial_balance: 0, is_default: false })
 
 const accounts = computed(() => accountStore.accounts)
 const activeAccounts = computed(() => accounts.value.filter(a => a.status === 1))
@@ -120,15 +125,19 @@ const totalAssets = computed(() => accountStore.totalAssets())
 const totalDebts = computed(() => accountStore.totalDebts())
 const netWorth = computed(() => totalAssets.value - totalDebts.value)
 
+function getAccIcon(icon) {
+  return getAccountIcon(icon)
+}
+
 function editAccount(acc) {
   editingAccount.value = acc
-  form.value = { name: acc.name, type: acc.type, initial_balance: acc.initial_balance, is_default: acc.is_default === 1 }
+  form.value = { name: acc.name, type: acc.type, icon: acc.icon || '', initial_balance: acc.initial_balance, is_default: acc.is_default === 1 }
 }
 
 function closeForm() {
   showAddForm.value = false
   editingAccount.value = null
-  form.value = { name: '', type: 1, initial_balance: 0, is_default: false }
+  form.value = { name: '', type: 1, icon: '', initial_balance: 0, is_default: false }
 }
 
 async function saveAccount() {
@@ -141,6 +150,7 @@ async function saveAccount() {
       await accountStore.updateAccount(editingAccount.value.id, {
         name: form.value.name,
         type: form.value.type,
+        icon: form.value.icon,
       })
     } else {
       await accountStore.createAccount(form.value)
@@ -176,7 +186,7 @@ onMounted(() => accountStore.fetchAccounts())
 
 .eye-btn {
   font-size: 16px;
-  color: #c4b8a0;
+  color: var(--text-light);
   cursor: pointer;
 }
 
@@ -215,14 +225,14 @@ onMounted(() => accountStore.fetchAccounts())
   align-items: center;
   gap: 12px;
   padding: 14px 0;
-  border-bottom: 0.5px solid #f0ece5;
+  border-bottom: 0.5px solid var(--border);
 }
 
-.acct-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.acct-icon {
+  font-size: 20px;
   flex-shrink: 0;
+  width: 28px;
+  text-align: center;
 }
 
 .acct-name {
@@ -256,7 +266,7 @@ onMounted(() => accountStore.fetchAccounts())
   align-items: center;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 0.5px solid #f0ece5;
+  border-bottom: 0.5px solid var(--border);
 }
 
 .acct-info {
@@ -267,7 +277,7 @@ onMounted(() => accountStore.fetchAccounts())
 
 .acct-type {
   font-size: 11px;
-  color: #bbb;
+  color: var(--text-muted);
 }
 
 .acct-actions {
@@ -323,7 +333,7 @@ onMounted(() => accountStore.fetchAccounts())
 
 .close-btn {
   font-size: 18px;
-  color: #bbb;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
@@ -346,7 +356,7 @@ onMounted(() => accountStore.fetchAccounts())
 
 .form-field label {
   font-size: 13px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .form-input {

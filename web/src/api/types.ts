@@ -27,6 +27,7 @@ export interface Category {
 export interface Tag {
   id: number
   name: string
+  icon: string
   color: string
   created_at: string
 }
@@ -43,7 +44,7 @@ export interface Bill {
   bill_date: string
   bill_time: string | null
   remark: string
-  tags: { id: number; name: string; color: string }[]
+  tags: { id: number; name: string; icon: string; color: string }[]
   transfer_to_account_id: number | null
   created_at: string
   updated_at: string

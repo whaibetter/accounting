@@ -258,7 +258,7 @@ onMounted(fetchBills)
 
 .ov-label {
   font-size: 11px;
-  color: #aaa;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
@@ -282,13 +282,13 @@ onMounted(fetchBills)
 .divider-line {
   flex: 1;
   height: 0.5px;
-  background: #f0ece5;
+  background: var(--border);
 }
 
 .divider-text {
   font-size: 12px;
   font-weight: 600;
-  color: #999;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -297,13 +297,13 @@ onMounted(fetchBills)
   align-items: center;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 0.5px solid #f5f2ed;
+  border-bottom: 0.5px solid var(--border);
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .feed-item:active {
-  background: rgba(0, 0, 0, 0.02);
+  background: var(--bg-input);
 }
 
 .feed-item:last-child {
@@ -367,12 +367,12 @@ onMounted(fetchBills)
 
 .fi-cat {
   font-size: 11px;
-  color: #bbb;
+  color: var(--text-muted);
 }
 
 .fi-account {
   font-size: 11px;
-  color: #ccc;
+  color: var(--text-light);
 }
 
 .loading-more {
@@ -388,7 +388,7 @@ onMounted(fetchBills)
 .no-more {
   text-align: center;
   padding: 20px;
-  color: #ddd;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -429,7 +429,7 @@ onMounted(fetchBills)
 
 .close-btn {
   font-size: 18px;
-  color: #bbb;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
@@ -448,13 +448,13 @@ onMounted(fetchBills)
   display: flex;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 0.5px solid #f0ece5;
+  border-bottom: 0.5px solid var(--border);
 }
 
 .edit-row label {
   width: 60px;
   font-size: 14px;
-  color: #777;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 

@@ -12,7 +12,7 @@ if (isDev && !apiTarget) {
 } else if (apiTarget) {
   baseURL = `${apiTarget}/api/v1`
 } else {
-  baseURL = '/accountig/api/v1'
+  baseURL = '/accounting/api/v1'
 }
 
 const api = axios.create({

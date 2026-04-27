@@ -80,6 +80,25 @@ export function getCategoryIcon(icon) {
   return CATEGORY_ICON_MAP[icon] || icon
 }
 
+const ACCOUNT_ICON_MAP = {
+  cash: '💵',
+  bank_card: '💳',
+  credit_card: '💳',
+  alipay: '📱',
+  wechat: '💬',
+  other: '👛',
+}
+
+export function getAccountIcon(icon) {
+  if (!icon) return '💰'
+  return ACCOUNT_ICON_MAP[icon] || icon
+}
+
+export function getTagIcon(icon) {
+  if (!icon) return '🔖'
+  return icon
+}
+
 import dayjs from 'dayjs'
 
 export function getMonthRange(date) {

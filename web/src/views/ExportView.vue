@@ -102,7 +102,7 @@ async function exportJson() {
 
 .form-field label {
   font-size: 13px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .form-input {

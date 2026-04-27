@@ -126,7 +126,7 @@ async function importAccounts() {
 
 .form-field label {
   font-size: 13px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .form-textarea {
@@ -148,12 +148,12 @@ async function importAccounts() {
   display: flex;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 0.5px solid #f0ece5;
+  border-bottom: 0.5px solid var(--border);
 }
 
 .result-label {
   font-size: 14px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .result-value {

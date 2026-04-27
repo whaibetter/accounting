@@ -170,7 +170,7 @@ onMounted(async () => {
 
 .eye-btn {
   font-size: 17px;
-  color: #c4b8a0;
+  color: var(--text-light);
   cursor: pointer;
 }
 

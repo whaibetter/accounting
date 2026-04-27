@@ -6,41 +6,39 @@
       <span style="width: 24px"></span>
     </div>
 
-    <div class="current-theme-card" :style="currentThemeCardStyle">
-      <div class="current-theme-preview" :style="{ background: currentTheme.colors['--theme-bg'] }">
-        <div class="preview-nav" :style="{ background: currentTheme.colors['--accent'] }"></div>
-        <div class="preview-body">
-          <div class="preview-line" :style="{ background: currentTheme.colors['--theme-body'] }"></div>
-          <div class="preview-line short" :style="{ background: currentTheme.colors['--theme-body'] }"></div>
-          <div class="preview-line" :style="{ background: currentTheme.colors['--theme-body'] }"></div>
+    <div class="mode-toggle-section">
+      <div class="mode-toggle" @click="toggleMode">
+        <div class="mode-option" :class="{ active: !isDark }">
+          <span class="mode-icon">☀️</span>
+          <span class="mode-label">浅色</span>
         </div>
-        <div class="preview-fab" :style="{ background: currentTheme.colors['--accent'] }"></div>
-      </div>
-      <div class="current-theme-info">
-        <div class="current-theme-name">{{ currentTheme.icon }} {{ currentTheme.name }}</div>
-        <div class="current-theme-label">当前主题</div>
+        <div class="mode-option" :class="{ active: isDark }">
+          <span class="mode-icon">🌙</span>
+          <span class="mode-label">深色</span>
+        </div>
+        <div class="mode-slider" :class="{ dark: isDark }"></div>
       </div>
     </div>
 
     <div class="section-header">
-      <span class="section-title">选择主题</span>
+      <span class="section-title">{{ isDark ? '深色主题' : '浅色主题' }}</span>
     </div>
 
     <div class="theme-list">
       <div
-        v-for="theme in themeList"
+        v-for="theme in filteredThemes"
         :key="theme.id"
         class="theme-item"
         :class="{ selected: currentThemeId === theme.id }"
         @click="selectTheme(theme.id)"
       >
-        <div class="theme-item-preview" :style="{ background: theme.colors['--theme-bg'] }">
+        <div class="theme-item-preview" :style="{ background: theme.colors['--bg-primary'] }">
           <div class="tip-bar" :style="{ background: theme.colors['--accent'] }"></div>
-          <div class="tip-body" :style="{ background: theme.colors['--theme-body'] }"></div>
+          <div class="tip-body" :style="{ background: theme.colors['--bg-tab'] }"></div>
         </div>
         <div class="theme-item-info">
           <span class="theme-item-name">{{ theme.icon }} {{ theme.name }}</span>
-          <span v-if="currentThemeId === theme.id" class="theme-item-check" :style="{ color: theme.colors['--accent'] }">✓ 使用中</span>
+          <span v-if="currentThemeId === theme.id" class="theme-item-check" :style="{ color: theme.colors['--accent'] }">✓</span>
         </div>
       </div>
     </div>
@@ -54,13 +52,16 @@ import { useThemeStore, THEMES } from '@/stores/theme'
 const themeStore = useThemeStore()
 
 const currentThemeId = computed(() => themeStore.currentThemeId)
-const themeList = Object.values(THEMES)
-const currentTheme = computed(() => THEMES[currentThemeId.value] || THEMES.warmSun)
+const isDark = computed(() => themeStore.isDark)
 
-const currentThemeCardStyle = computed(() => ({
-  background: currentTheme.value.colors['--bg-card'],
-  borderColor: currentTheme.value.colors['--accent'],
-}))
+const filteredThemes = computed(() => {
+  const mode = isDark.value ? 'dark' : 'light'
+  return Object.values(THEMES).filter(t => t.mode === mode)
+})
+
+function toggleMode() {
+  themeStore.toggleDarkMode()
+}
 
 function selectTheme(id) {
   themeStore.applyTheme(id)
@@ -75,81 +76,65 @@ function selectTheme(id) {
   width: 24px;
 }
 
-.current-theme-card {
-  margin: 12px 16px;
-  border-radius: 20px;
-  padding: 20px;
+.mode-toggle-section {
   display: flex;
-  gap: 16px;
-  align-items: center;
-  box-shadow: var(--shadow-lg);
-  border: 1.5px solid var(--accent);
+  justify-content: center;
+  padding: 8px 16px 16px;
 }
 
-.current-theme-preview {
-  width: 72px;
-  height: 96px;
-  border-radius: 12px;
-  flex-shrink: 0;
+.mode-toggle {
   display: flex;
-  flex-direction: column;
-  padding: 6px;
   position: relative;
-  overflow: hidden;
+  background: var(--bg-tab);
+  border-radius: 12px;
+  padding: 3px;
+  cursor: pointer;
+  width: 200px;
 }
 
-.preview-nav {
-  height: 8px;
-  border-radius: 4px;
-  width: 80%;
-  margin-bottom: 6px;
-}
-
-.preview-body {
+.mode-option {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0;
+  z-index: 1;
+  transition: color 0.25s;
+  color: var(--text-muted);
 }
 
-.preview-line {
-  height: 6px;
-  border-radius: 3px;
-  width: 100%;
-}
-
-.preview-line.short {
-  width: 60%;
-}
-
-.preview-fab {
-  position: absolute;
-  bottom: 8px;
-  right: 6px;
-  width: 16px;
-  height: 16px;
-  border-radius: 5px;
-}
-
-.current-theme-info {
-  flex: 1;
-}
-
-.current-theme-name {
-  font-size: 18px;
-  font-weight: 700;
+.mode-option.active {
   color: var(--text-primary);
 }
 
-.current-theme-label {
-  font-size: 12px;
-  color: var(--accent);
+.mode-icon {
+  font-size: 16px;
+}
+
+.mode-label {
+  font-size: 13px;
   font-weight: 600;
-  margin-top: 4px;
+}
+
+.mode-slider {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  background: var(--bg-card);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mode-slider.dark {
+  transform: translateX(100%);
 }
 
 .section-header {
-  padding: 16px 20px 8px;
+  padding: 8px 20px 8px;
 }
 
 .section-title {
@@ -209,8 +194,9 @@ function selectTheme(id) {
 
 .theme-item-info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .theme-item-name {
@@ -220,7 +206,7 @@ function selectTheme(id) {
 }
 
 .theme-item-check {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
 }
 </style>

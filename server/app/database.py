@@ -71,13 +71,16 @@ def init_db():
 
     执行以下操作：
         1. 创建所有数据表（如果不存在）
-        2. 插入预设分类数据（如果分类表为空）
-        3. 初始化认证系统（密码哈希、JWT密钥）
+        2. 执行数据库迁移（新增字段等）
+        3. 插入预设分类数据（如果分类表为空）
+        4. 初始化认证系统（密码哈希、JWT密钥）
 
     此函数应在应用启动时调用一次。
     """
-    from app.models import Account, Category, SystemConfig  # noqa: F401
+    from app.models import Account, Category, Tag, SystemConfig  # noqa: F401
     Base.metadata.create_all(bind=engine)
+
+    _migrate_db()
 
     db = SessionLocal()
     try:
@@ -88,6 +91,26 @@ def init_db():
 
     from app.auth import init_auth
     init_auth()
+
+
+def _migrate_db():
+    """
+    数据库迁移：为已有表添加新字段。
+
+    检查并添加因版本升级而新增的数据库列，
+    确保旧数据库也能正常使用新功能。
+    """
+    import sqlalchemy
+    insp = sqlalchemy.inspect(engine)
+
+    if 'tag' in insp.get_table_names():
+        tag_columns = [col['name'] for col in insp.get_columns('tag')]
+        if 'icon' not in tag_columns:
+            with engine.connect() as conn:
+                conn.execute(sqlalchemy.text(
+                    "ALTER TABLE tag ADD COLUMN icon VARCHAR(50) DEFAULT ''"
+                ))
+                conn.commit()
 
 
 def _seed_categories(db):
