@@ -2,12 +2,28 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+function redirectPlugin() {
+  return {
+    name: 'redirect-accounting',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url === '/accounting') {
+          res.writeHead(301, { Location: '/accounting/' })
+          res.end()
+          return
+        }
+        next()
+      })
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiTarget = env.API_TARGET || 'http://127.0.0.1:8000'
 
   return {
-    plugins: [vue()],
+    plugins: [vue(), redirectPlugin()],
     base: '/accounting/',
     resolve: {
       alias: {
@@ -24,11 +40,6 @@ export default defineConfig(({ mode }) => {
           secure: false,
           ws: true,
         },
-      },
-      historyApiFallback: {
-        rewrites: [
-          { from: /^\/accounting$/, to: '/accounting/' },
-        ],
       },
     },
     appType: 'spa',
