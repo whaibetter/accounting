@@ -159,13 +159,7 @@ function selectEmoji(emoji) {
 .ep-category-tabs {
   display: flex;
   gap: 4px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ep-category-tabs::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
 }
 
 .ep-cat-tab {
@@ -177,7 +171,6 @@ function selectEmoji(emoji) {
   background: var(--bg-tab, #f5f1eb);
   white-space: nowrap;
   transition: all 0.2s;
-  flex-shrink: 0;
 }
 
 .ep-cat-tab.active {

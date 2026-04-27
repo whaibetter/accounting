@@ -418,12 +418,7 @@ onMounted(async () => {
   display: flex;
   gap: 6px;
   flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.time-filter::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
 }
 
 .filter-btn {
@@ -433,7 +428,6 @@ onMounted(async () => {
   background: var(--bg-card);
   color: var(--text-secondary);
   border: 1px solid var(--border, #eee);
-  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s;
 }

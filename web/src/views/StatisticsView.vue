@@ -539,12 +539,7 @@ onMounted(fetchData)
   display: flex;
   gap: 6px;
   padding: 4px 16px 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.time-presets::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
 }
 
 .preset-btn {
@@ -554,7 +549,6 @@ onMounted(fetchData)
   background: var(--bg-card);
   color: var(--text-secondary);
   border: 1px solid var(--border);
-  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s;
 }

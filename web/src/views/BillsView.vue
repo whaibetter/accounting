@@ -75,23 +75,35 @@
           <span class="delete-btn" @click="handleDeleteBill">删除</span>
         </div>
         <div class="edit-body">
-          <div class="edit-row">
+          <div class="edit-field">
             <label>金额</label>
-            <input type="number" v-model="editForm.amount" step="0.01" class="edit-input" />
+            <input type="number" v-model="editForm.amount" step="0.01" class="edit-input-box" />
           </div>
-          <div class="edit-row">
+          <div class="edit-field">
             <label>分类</label>
-            <select v-model="editForm.category_id" class="edit-input">
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ getCatIcon(cat.icon) }} {{ cat.name }}</option>
-            </select>
+            <CustomSelect
+              v-model="editForm.category_id"
+              :options="categoryOptions"
+              placeholder="选择分类"
+              class="edit-select"
+            />
           </div>
-          <div class="edit-row">
+          <div class="edit-field">
+            <label>账户</label>
+            <CustomSelect
+              v-model="editForm.account_id"
+              :options="accountOptions"
+              placeholder="选择账户"
+              class="edit-select"
+            />
+          </div>
+          <div class="edit-field">
             <label>备注</label>
-            <input type="text" v-model="editForm.remark" class="edit-input" />
+            <input type="text" v-model="editForm.remark" placeholder="添加备注" class="edit-input-box" />
           </div>
-          <div class="edit-row">
+          <div class="edit-field">
             <label>日期</label>
-            <input type="date" v-model="editForm.bill_date" class="edit-input" />
+            <input type="date" v-model="editForm.bill_date" class="edit-input-box" />
           </div>
           <button class="btn-primary save-btn" @click="saveBill">保存</button>
         </div>
@@ -110,25 +122,39 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useBillStore, useCategoryStore, useStatisticsStore } from '@/stores/data'
-import { formatMoney, formatDateCN, getWeekday, getMonthRange, getCategoryIcon } from '@/utils/format'
+import { useBillStore, useCategoryStore, useAccountStore, useStatisticsStore } from '@/stores/data'
+import { formatMoney, formatDateCN, getWeekday, getMonthRange, getCategoryIcon, getAccountIcon } from '@/utils/format'
 import dayjs from 'dayjs'
 import MonthPicker from '@/components/MonthPicker.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import CustomSelect from '@/components/CustomSelect.vue'
 
 const billStore = useBillStore()
 const categoryStore = useCategoryStore()
+const accountStore = useAccountStore()
 const statsStore = useStatisticsStore()
 const confirmDialog = ref(null)
 
 const currentMonth = ref(dayjs())
 const showMonthPicker = ref(false)
 const editingBill = ref(null)
-const editForm = ref({ amount: 0, remark: '', bill_date: '', category_id: null })
+const editForm = ref({ amount: 0, remark: '', bill_date: '', category_id: null, account_id: null })
 const pageRef = ref(null)
 const loadingMore = ref(false)
 
-const categories = computed(() => categoryStore.flatCategories())
+const categoryOptions = computed(() =>
+  categoryStore.flatCategories().map(cat => ({
+    label: `${getCategoryIcon(cat.icon)} ${cat.name}`,
+    value: cat.id,
+  }))
+)
+
+const accountOptions = computed(() =>
+  accountStore.accounts.filter(a => a.status === 1).map(acc => ({
+    label: `${getAccountIcon(acc.icon)} ${acc.name}`,
+    value: acc.id,
+  }))
+)
 
 const bills = computed(() => billStore.bills)
 const loading = computed(() => billStore.loading)
@@ -212,8 +238,10 @@ function editBill(bill) {
     remark: bill.remark,
     bill_date: bill.bill_date,
     category_id: bill.category_id,
+    account_id: bill.account_id,
   }
   categoryStore.fetchCategories()
+  accountStore.fetchAccounts()
 }
 
 async function saveBill() {
@@ -428,7 +456,7 @@ onMounted(fetchBills)
   border-radius: 20px;
   padding: 24px;
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
   max-height: 85vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -439,6 +467,12 @@ onMounted(fetchBills)
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+}
+
+.edit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .close-btn {
@@ -458,37 +492,35 @@ onMounted(fetchBills)
   cursor: pointer;
 }
 
-.edit-row {
+.edit-field {
   display: flex;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 0.5px solid var(--border);
+  flex-direction: column;
+  gap: 6px;
 }
 
-.edit-row label {
-  width: 60px;
-  font-size: 14px;
+.edit-field label {
+  font-size: 13px;
   color: var(--text-secondary);
-  flex-shrink: 0;
+  font-weight: 600;
 }
 
-.edit-input {
-  flex: 1;
-  border: none;
+.edit-input-box {
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
   font-size: 14px;
   color: var(--text-primary);
-  background: transparent;
+  background: var(--bg-input);
   outline: none;
+  transition: border-color 0.2s;
 }
 
-select.edit-input {
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  padding-right: 20px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 4px center;
+.edit-input-box:focus {
+  border-color: var(--accent);
+}
+
+.edit-select {
+  width: 100%;
 }
 
 .save-btn {
