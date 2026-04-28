@@ -1,15 +1,16 @@
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 
 from app.auth import update_user_profile, get_user_by_id, _hash_password
 from app.database import SessionLocal
 from app.dependencies import require_admin
-from app.models import User, OperationLog
+from app.models import User, OperationLog, Bill, Account, Category
 
 logger = logging.getLogger("admin")
 
@@ -240,5 +241,124 @@ def admin_stats(admin_id: int = Depends(require_admin)):
                 "total_accounts": total_accounts,
             },
         }
+    finally:
+        db.close()
+
+
+@router.get("/users/{user_id}/bills", summary="获取用户账单列表")
+def get_user_bills(
+    user_id: int,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    start_date: Optional[date] = Query(None, description="开始日期"),
+    end_date: Optional[date] = Query(None, description="结束日期"),
+    type: Optional[int] = Query(None, ge=1, le=3, description="类型"),
+    admin_id: int = Depends(require_admin),
+):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="用户不存在")
+
+        query = db.query(Bill).join(Account, Bill.account_id == Account.id).filter(Account.user_id == user_id)
+        if start_date:
+            query = query.filter(Bill.bill_date >= start_date)
+        if end_date:
+            query = query.filter(Bill.bill_date <= end_date)
+        if type is not None:
+            query = query.filter(Bill.type == type)
+
+        total = query.count()
+        total_income = query.filter(Bill.type == 2).with_entities(func.sum(Bill.amount)).scalar() or 0
+        total_expense = query.filter(Bill.type == 1).with_entities(func.sum(Bill.amount)).scalar() or 0
+
+        bills = query.order_by(Bill.bill_date.desc()).offset((page - 1) * size).limit(size).all()
+
+        type_map = {1: "支出", 2: "收入", 3: "转账"}
+        items = []
+        for b in bills:
+            items.append({
+                "id": b.id,
+                "type": b.type,
+                "type_name": type_map.get(b.type, "未知"),
+                "amount": b.amount,
+                "category_name": b.category.name if b.category else "",
+                "category_icon": b.category.icon if b.category else "",
+                "account_name": b.account.name if b.account else "",
+                "bill_date": str(b.bill_date),
+                "remark": b.remark or "",
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            })
+
+        return {
+            "code": 200,
+            "message": "success",
+            "data": {
+                "items": items,
+                "total": total,
+                "page": page,
+                "size": size,
+                "total_income": float(total_income),
+                "total_expense": float(total_expense),
+                "username": user.username,
+                "nickname": user.nickname or user.username,
+            },
+        }
+    finally:
+        db.close()
+
+
+@router.get("/users/{user_id}/bills/export", summary="导出用户账单")
+def export_user_bills(
+    user_id: int,
+    start_date: Optional[date] = Query(None, description="开始日期"),
+    end_date: Optional[date] = Query(None, description="结束日期"),
+    admin_id: int = Depends(require_admin),
+):
+    import io
+    import json
+    from openpyxl import Workbook
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="用户不存在")
+
+        query = db.query(Bill).join(Account, Bill.account_id == Account.id).filter(Account.user_id == user_id)
+        if start_date:
+            query = query.filter(Bill.bill_date >= start_date)
+        if end_date:
+            query = query.filter(Bill.bill_date <= end_date)
+
+        bills = query.order_by(Bill.bill_date.desc()).all()
+        type_map = {1: "支出", 2: "收入", 3: "转账"}
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "账单"
+        ws.append(["日期", "类型", "分类", "账户", "金额", "备注"])
+
+        for b in bills:
+            ws.append([
+                str(b.bill_date),
+                type_map.get(b.type, "未知"),
+                b.category.name if b.category else "",
+                b.account.name if b.account else "",
+                b.amount,
+                b.remark or "",
+            ])
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f"user_{user.username}_bills.xlsx"
+        return StreamingResponse(
+            output,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
     finally:
         db.close()
