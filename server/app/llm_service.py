@@ -31,7 +31,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from app.llm_config import LlmConfigManager
+from app.llm_config import LlmConfigManager, PROVIDERS
 
 logger = logging.getLogger(__name__)
 
@@ -190,17 +190,19 @@ class LlmService:
 
         config = self.config_manager.get_resolved_config()
         provider = config.get("provider", "openai")
+        provider_info = PROVIDERS.get(provider, {})
+        protocol = provider_info.get("protocol", "openai")
 
         try:
-            if provider == "anthropic":
+            if protocol == "anthropic":
                 return await self._test_anthropic(config)
             else:
                 return await self._test_openai(config)
         except httpx.ConnectError as e:
             base_url = config.get("base_url", "")
-            url = f"{base_url.rstrip('/')}/v1/messages" if provider == "anthropic" else f"{base_url.rstrip('/')}/chat/completions"
-            safe_headers = self._safe_headers(config, provider)
-            payload = self._build_test_payload(config, provider)
+            url = f"{base_url.rstrip('/')}/v1/messages" if protocol == "anthropic" else f"{base_url.rstrip('/')}/chat/completions"
+            safe_headers = self._safe_headers(config, protocol)
+            payload = self._build_test_payload(config, protocol)
             return {
                 "success": False,
                 "message": f"无法连接到API服务器 {base_url}",
@@ -217,9 +219,9 @@ class LlmService:
             }
         except httpx.TimeoutException as e:
             base_url = config.get("base_url", "")
-            url = f"{base_url.rstrip('/')}/v1/messages" if provider == "anthropic" else f"{base_url.rstrip('/')}/chat/completions"
-            safe_headers = self._safe_headers(config, provider)
-            payload = self._build_test_payload(config, provider)
+            url = f"{base_url.rstrip('/')}/v1/messages" if protocol == "anthropic" else f"{base_url.rstrip('/')}/chat/completions"
+            safe_headers = self._safe_headers(config, protocol)
+            payload = self._build_test_payload(config, protocol)
             return {
                 "success": False,
                 "message": "连接超时，请检查网络或增加超时时间",
@@ -466,15 +468,17 @@ class LlmService:
 
         config = self.config_manager.get_resolved_config()
         provider = config.get("provider", "openai")
+        provider_info = PROVIDERS.get(provider, {})
+        protocol = provider_info.get("protocol", "openai")
 
         logger.info(f"[智能记账] 开始解析文本: '{text[:100]}{'...' if len(text) > 100 else ''}'")
-        logger.info(f"[智能记账] 提供商: {provider}, 模型: {config.get('model', 'unknown')}")
+        logger.info(f"[智能记账] 提供商: {provider}, 协议: {protocol}, 模型: {config.get('model', 'unknown')}")
 
         today = date.today().isoformat()
         user_message = f"当前日期: {today}\n用户输入: {text.strip()}"
 
         try:
-            if provider == "anthropic":
+            if protocol == "anthropic":
                 raw_response = await self._call_anthropic(config, user_message)
             else:
                 raw_response = await self._call_openai(config, user_message)

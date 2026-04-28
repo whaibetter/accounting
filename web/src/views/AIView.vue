@@ -40,9 +40,77 @@
           <span class="config-value">{{ config.timeout ? config.timeout + '秒' : '-' }}</span>
         </div>
       </div>
-      <button class="btn-outline" @click="openConfigForm" style="width: 100%; margin-top: 12px">
-        {{ config?.is_configured ? '修改配置' : '配置API' }}
-      </button>
+      <div class="config-actions">
+        <button class="btn-test" @click="quickTest" :disabled="quickTesting" style="flex: 1">
+          {{ quickTesting ? '测试中...' : '测试连接' }}
+        </button>
+        <button class="btn-outline" @click="openConfigForm" style="flex: 1">
+          {{ config?.is_configured ? '修改配置' : '配置API' }}
+        </button>
+      </div>
+
+      <div v-if="quickTestResult" class="test-result" style="margin-top: 12px">
+        <div class="result-header" :class="quickTestResult.success ? 'success' : 'error'">
+          {{ quickTestResult.success ? '✅ 连接成功' : '❌ 连接失败' }}
+        </div>
+        <div class="result-message">{{ quickTestResult.message }}</div>
+        <template v-if="quickTestResult.request || quickTestResult.response">
+          <div v-if="quickTestResult.request" class="result-section">
+            <div class="section-title-row" @click="toggleQuickSection('request')">
+              <span>请求信息 (Request)</span>
+              <span class="toggle-icon">{{ quickExpanded.request ? '▼' : '▶' }}</span>
+            </div>
+            <div v-if="quickExpanded.request" class="result-detail">
+              <div class="detail-item">
+                <span class="detail-label">请求URL</span>
+                <code class="detail-value">{{ quickTestResult.request.url }}</code>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">请求方法</span>
+                <code class="detail-value">{{ quickTestResult.request.method }}</code>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">请求头</span>
+                <pre class="detail-pre">{{ formatJson(quickTestResult.request.headers) }}</pre>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">请求参数</span>
+                <pre class="detail-pre">{{ formatJson(quickTestResult.request.body) }}</pre>
+              </div>
+            </div>
+          </div>
+          <div v-if="quickTestResult.response" class="result-section">
+            <div class="section-title-row" @click="toggleQuickSection('response')">
+              <span>响应信息 (Response)</span>
+              <span class="toggle-icon">{{ quickExpanded.response ? '▼' : '▶' }}</span>
+            </div>
+            <div v-if="quickExpanded.response" class="result-detail">
+              <div v-if="quickTestResult.response.status_code" class="detail-item">
+                <span class="detail-label">状态码</span>
+                <code class="detail-value" :class="quickTestResult.response.status_code < 400 ? 'status-ok' : 'status-err'">
+                  {{ quickTestResult.response.status_code }}
+                </code>
+              </div>
+              <div v-if="quickTestResult.response.elapsed_ms" class="detail-item">
+                <span class="detail-label">耗时</span>
+                <code class="detail-value">{{ quickTestResult.response.elapsed_ms }}ms</code>
+              </div>
+              <div v-if="quickTestResult.response.headers" class="detail-item">
+                <span class="detail-label">响应头</span>
+                <pre class="detail-pre">{{ formatJson(quickTestResult.response.headers) }}</pre>
+              </div>
+              <div v-if="quickTestResult.response.body" class="detail-item">
+                <span class="detail-label">响应体</span>
+                <pre class="detail-pre">{{ formatBody(quickTestResult.response.body) }}</pre>
+              </div>
+              <div v-if="quickTestResult.response.error" class="detail-item">
+                <span class="detail-label">错误信息</span>
+                <code class="detail-value status-err">{{ quickTestResult.response.error }}</code>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
     </div>
 
     <div v-else-if="config" class="card">
@@ -127,6 +195,16 @@
               @change="onProviderChange"
             />
           </div>
+          <div v-if="providerModels.length" class="form-field">
+            <label>模型选择</label>
+            <CustomSelect
+              v-model="configForm.model"
+              :options="providerModels"
+              placeholder="选择模型"
+              class="form-input"
+            />
+            <div class="field-hint">也可在下方手动输入模型名称</div>
+          </div>
           <div class="form-field">
             <label>API Key</label>
             <div class="api-key-wrapper">
@@ -147,9 +225,10 @@
           <div class="form-field">
             <label>Base URL</label>
             <input v-model="configForm.base_url" type="text" placeholder="API基础URL" class="form-input" />
+            <div class="field-hint">OpenAI兼容格式使用 /chat/completions，Anthropic格式使用 /v1/messages</div>
           </div>
           <div class="form-field">
-            <label>模型</label>
+            <label>模型名称</label>
             <input v-model="configForm.model" type="text" placeholder="模型名称" class="form-input" />
           </div>
           <div class="form-field">
@@ -252,20 +331,74 @@ const providerOptions = [
   { label: 'OpenAI', value: 'openai' },
   { label: 'Anthropic', value: 'anthropic' },
   { label: 'OpenRouter', value: 'openrouter' },
+  { label: 'DeepSeek', value: 'deepseek' },
+  { label: '通义千问', value: 'qwen' },
+  { label: '硅基流动', value: 'siliconflow' },
+  { label: 'Groq', value: 'groq' },
   { label: '自定义', value: 'custom' },
 ]
+
+const providerModelMap = {
+  openai: [
+    { label: 'GPT-4o', value: 'gpt-4o' },
+    { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+    { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+    { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+    { label: 'O1 Mini', value: 'o1-mini' },
+    { label: 'O3 Mini', value: 'o3-mini' },
+  ],
+  anthropic: [
+    { label: 'Claude Sonnet 4', value: 'claude-sonnet-4-20250514' },
+    { label: 'Claude 3.5 Sonnet', value: 'claude-3-5-sonnet-20241022' },
+    { label: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
+  ],
+  openrouter: [
+    { label: 'MiniMax M2.5 (Free)', value: 'minimax/minimax-m2.5:free' },
+    { label: 'DeepSeek Chat V3 (Free)', value: 'deepseek/deepseek-chat-v3-0324:free' },
+    { label: 'Gemma 3 27B (Free)', value: 'google/gemma-3-27b-it:free' },
+    { label: 'Llama 4 Maverick (Free)', value: 'meta-llama/llama-4-maverick:free' },
+    { label: 'Qwen3 32B (Free)', value: 'qwen/qwen3-32b:free' },
+    { label: 'Tencent HY3 (Free)', value: 'tencent/hy3-preview:free' },
+  ],
+  deepseek: [
+    { label: 'DeepSeek Chat', value: 'deepseek-chat' },
+    { label: 'DeepSeek Reasoner', value: 'deepseek-reasoner' },
+  ],
+  qwen: [
+    { label: 'Qwen Plus', value: 'qwen-plus' },
+    { label: 'Qwen Turbo', value: 'qwen-turbo' },
+    { label: 'Qwen Max', value: 'qwen-max' },
+    { label: 'Qwen Long', value: 'qwen-long' },
+  ],
+  siliconflow: [
+    { label: 'DeepSeek V3', value: 'deepseek-ai/DeepSeek-V3' },
+    { label: 'DeepSeek R1', value: 'deepseek-ai/DeepSeek-R1' },
+    { label: 'Qwen2.5 72B', value: 'Qwen/Qwen2.5-72B-Instruct' },
+    { label: 'GLM-4 9B', value: 'THUDM/GLM-4-9B-0414' },
+  ],
+  groq: [
+    { label: 'Llama 3.3 70B', value: 'llama-3.3-70b-versatile' },
+    { label: 'Llama 3.1 8B', value: 'llama-3.1-8b-instant' },
+    { label: 'Mixtral 8x7B', value: 'mixtral-8x7b-32768' },
+  ],
+  custom: [],
+}
+
+const providerModels = computed(() => {
+  return providerModelMap[configForm.value.provider] || []
+})
 
 const config = ref(null)
 const showConfigForm = ref(false)
 const showApiKey = ref(false)
 const configForm = ref({
-  provider: 'openai',
+  provider: 'openrouter',
   api_key: '',
-  base_url: '',
-  model: '',
+  base_url: 'https://openrouter.ai/api/v1',
+  model: 'minimax/minimax-m2.5:free',
   temperature: 0.3,
   max_tokens: 1024,
-  timeout: 30,
+  timeout: 60,
   has_api_key: false,
   api_key_masked: '',
 })
@@ -276,9 +409,21 @@ const testResult = ref(null)
 const parseResult = ref(null)
 const importResult = ref(null)
 const expandedSections = ref({ request: true, response: true })
+const quickTesting = ref(false)
+const quickTestResult = ref(null)
+const quickExpanded = ref({ request: false, response: false })
 
 function providerLabel(provider) {
-  const map = { openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter', custom: '自定义' }
+  const map = {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    openrouter: 'OpenRouter',
+    deepseek: 'DeepSeek',
+    qwen: '通义千问',
+    siliconflow: '硅基流动',
+    groq: 'Groq',
+    custom: '自定义',
+  }
   return map[provider] || provider || '-'
 }
 
@@ -294,33 +439,40 @@ async function fetchConfig() {
 async function openConfigForm() {
   testResult.value = null
   showApiKey.value = false
+
+  const currentConfig = config.value
+  if (currentConfig) {
+    configForm.value = {
+      provider: currentConfig.provider || 'openrouter',
+      api_key: '',
+      base_url: currentConfig.base_url || '',
+      model: currentConfig.model || '',
+      temperature: currentConfig.temperature ?? 0.3,
+      max_tokens: currentConfig.max_tokens ?? 1024,
+      timeout: currentConfig.timeout ?? 60,
+      has_api_key: !!currentConfig.api_key_masked,
+      api_key_masked: currentConfig.api_key_masked || '',
+    }
+  }
+
   try {
     const res = await llmApi.getConfigForEdit()
     const data = res.data.data
     configForm.value = {
-      provider: data.provider || 'openai',
+      provider: data.provider || 'openrouter',
       api_key: '',
       base_url: data.base_url || '',
       model: data.model || '',
       temperature: data.temperature ?? 0.3,
       max_tokens: data.max_tokens ?? 1024,
-      timeout: data.timeout ?? 30,
+      timeout: data.timeout ?? 60,
       has_api_key: data.has_api_key || false,
       api_key_masked: data.api_key_masked || '',
     }
   } catch (e) {
-    configForm.value = {
-      provider: 'openai',
-      api_key: '',
-      base_url: '',
-      model: '',
-      temperature: 0.3,
-      max_tokens: 1024,
-      timeout: 30,
-      has_api_key: false,
-      api_key_masked: '',
-    }
+    // already populated from currentConfig above
   }
+
   showConfigForm.value = true
 }
 
@@ -334,6 +486,10 @@ function onProviderChange() {
     openai: { base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
     anthropic: { base_url: 'https://api.anthropic.com', model: 'claude-sonnet-4-20250514' },
     openrouter: { base_url: 'https://openrouter.ai/api/v1', model: 'minimax/minimax-m2.5:free' },
+    deepseek: { base_url: 'https://api.deepseek.com', model: 'deepseek-chat' },
+    qwen: { base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+    siliconflow: { base_url: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V3' },
+    groq: { base_url: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
     custom: { base_url: '', model: '' },
   }
   const d = defaults[configForm.value.provider] || defaults.custom
@@ -376,8 +532,30 @@ async function testConnection() {
   }
 }
 
+async function quickTest() {
+  quickTesting.value = true
+  quickTestResult.value = null
+  quickExpanded.value = { request: false, response: false }
+  try {
+    const res = await llmApi.testConnection()
+    quickTestResult.value = res.data.data
+  } catch (e) {
+    quickTestResult.value = {
+      success: false,
+      message: e.response?.data?.detail || '测试请求失败',
+      response: { error: e.message || '未知错误' },
+    }
+  } finally {
+    quickTesting.value = false
+  }
+}
+
 function toggleSection(section) {
   expandedSections.value[section] = !expandedSections.value[section]
+}
+
+function toggleQuickSection(section) {
+  quickExpanded.value[section] = !quickExpanded.value[section]
 }
 
 function formatJson(obj) {
@@ -474,6 +652,12 @@ onMounted(fetchConfig)
   color: var(--success);
 }
 
+.config-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .btn-outline {
   padding: 10px 20px;
   border: 1.5px solid var(--accent);
@@ -488,6 +672,27 @@ onMounted(fetchConfig)
 
 .btn-outline:hover {
   background: rgba(212, 165, 116, 0.1);
+}
+
+.btn-test {
+  padding: 10px 20px;
+  border: 1.5px solid var(--success);
+  border-radius: 12px;
+  color: var(--success);
+  font-size: 14px;
+  font-weight: 600;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-test:hover {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.btn-test:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .form-field {

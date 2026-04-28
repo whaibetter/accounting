@@ -38,18 +38,21 @@ CONFIG_FILE = DATA_DIR / "llm_config.json"
 PROVIDERS = {
     "openai": {
         "name": "OpenAI",
+        "protocol": "openai",
         "default_base_url": "https://api.openai.com/v1",
         "default_model": "gpt-4o-mini",
-        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo", "o1-mini", "o3-mini"],
     },
     "anthropic": {
         "name": "Anthropic",
+        "protocol": "anthropic",
         "default_base_url": "https://api.anthropic.com",
         "default_model": "claude-sonnet-4-20250514",
         "models": ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"],
     },
     "openrouter": {
         "name": "OpenRouter",
+        "protocol": "openai",
         "default_base_url": "https://openrouter.ai/api/v1",
         "default_model": "minimax/minimax-m2.5:free",
         "models": [
@@ -58,10 +61,45 @@ PROVIDERS = {
             "google/gemma-3-27b-it:free",
             "meta-llama/llama-4-maverick:free",
             "qwen/qwen3-32b:free",
+            "tencent/hy3-preview:free",
         ],
+    },
+    "deepseek": {
+        "name": "DeepSeek",
+        "protocol": "openai",
+        "default_base_url": "https://api.deepseek.com",
+        "default_model": "deepseek-chat",
+        "models": ["deepseek-chat", "deepseek-reasoner"],
+    },
+    "qwen": {
+        "name": "通义千问",
+        "protocol": "openai",
+        "default_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "default_model": "qwen-plus",
+        "models": ["qwen-plus", "qwen-turbo", "qwen-max", "qwen-long"],
+    },
+    "siliconflow": {
+        "name": "硅基流动",
+        "protocol": "openai",
+        "default_base_url": "https://api.siliconflow.cn/v1",
+        "default_model": "deepseek-ai/DeepSeek-V3",
+        "models": [
+            "deepseek-ai/DeepSeek-V3",
+            "deepseek-ai/DeepSeek-R1",
+            "Qwen/Qwen2.5-72B-Instruct",
+            "THUDM/GLM-4-9B-0414",
+        ],
+    },
+    "groq": {
+        "name": "Groq",
+        "protocol": "openai",
+        "default_base_url": "https://api.groq.com/openai/v1",
+        "default_model": "llama-3.3-70b-versatile",
+        "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
     },
     "custom": {
         "name": "自定义",
+        "protocol": "openai",
         "default_base_url": "",
         "default_model": "",
         "models": [],
