@@ -76,6 +76,7 @@ app.include_router(statistics.router)
 app.include_router(export.router)
 app.include_router(import_data.router)
 app.include_router(llm.router)
+app.include_router(llm.stream_router)
 app.include_router(avatar.router)
 app.include_router(admin.router)
 

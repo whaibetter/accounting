@@ -1,4 +1,5 @@
 import api from './api'
+import { useAuthStore } from '@/stores/auth'
 
 export const authApi = {
   login(username, password) {
@@ -132,6 +133,39 @@ export const llmApi = {
   },
   testConnection() {
     return api.post('/llm/test')
+  },
+  testConnectionStream(onEvent) {
+    const authStore = useAuthStore()
+    const token = authStore.token
+    const base = api.defaults.baseURL || '/accounting/api/v1'
+    const url = `${base}/llm/test/stream`
+
+    return new Promise((resolve, reject) => {
+      const evtSource = new EventSource(url + (url.includes('?') ? '&' : '?') + `token=${encodeURIComponent(token)}`)
+
+      evtSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          onEvent(data)
+          if (data.phase === 'completed' || data.phase === 'error') {
+            evtSource.close()
+            resolve(data)
+          }
+        } catch (e) {
+          console.error('SSE parse error:', e)
+        }
+      }
+
+      evtSource.onerror = (e) => {
+        evtSource.close()
+        reject(e)
+      }
+
+      setTimeout(() => {
+        evtSource.close()
+        reject(new Error('SSE timeout'))
+      }, 120000)
+    })
   },
   parse(text) {
     return api.post('/llm/parse', { text })

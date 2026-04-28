@@ -49,13 +49,37 @@
         </button>
       </div>
 
-      <div v-if="quickTestResult" class="test-result" style="margin-top: 12px">
-        <div class="result-header" :class="quickTestResult.success ? 'success' : 'error'">
-          {{ quickTestResult.success ? '✅ 连接成功' : '❌ 连接失败' }}
+      <div v-if="streamPhases.length > 0" class="test-result" style="margin-top: 12px">
+        <div class="result-header" :class="finalSuccess === true ? 'success' : finalSuccess === false ? 'error' : 'pending'">
+          <span v-if="finalSuccess === true">✅ 连接成功</span>
+          <span v-else-if="finalSuccess === false">❌ 连接失败</span>
+          <span v-else>⏳ 测试进行中...</span>
         </div>
-        <div class="result-message">{{ quickTestResult.message }}</div>
-        <template v-if="quickTestResult.request || quickTestResult.response">
-          <div v-if="quickTestResult.request" class="result-section">
+
+        <div class="progress-timeline">
+          <div v-for="(phase, idx) in streamPhases" :key="idx" class="timeline-item" :class="phaseClass(phase)">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="timeline-status">{{ phaseLabel(phase.phase) }}</span>
+                <span v-if="phase.timing" class="timeline-time">{{ formatPhaseTime(phase) }}</span>
+              </div>
+              <div class="timeline-message">{{ phase.message }}</div>
+            </div>
+          </div>
+          <div v-if="quickTesting" class="timeline-item active">
+            <div class="timeline-dot pulsing"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <span class="timeline-status">等待响应</span>
+              </div>
+              <div class="timeline-message">正在等待服务器返回数据...</div>
+            </div>
+          </div>
+        </div>
+
+        <template v-if="streamRequest || streamResponse">
+          <div v-if="streamRequest" class="result-section">
             <div class="section-title-row" @click="toggleQuickSection('request')">
               <span>请求信息 (Request)</span>
               <span class="toggle-icon">{{ quickExpanded.request ? '▼' : '▶' }}</span>
@@ -63,49 +87,62 @@
             <div v-if="quickExpanded.request" class="result-detail">
               <div class="detail-item">
                 <span class="detail-label">请求URL</span>
-                <code class="detail-value">{{ quickTestResult.request.url }}</code>
+                <code class="detail-value">{{ streamRequest.url }}</code>
               </div>
               <div class="detail-item">
                 <span class="detail-label">请求方法</span>
-                <code class="detail-value">{{ quickTestResult.request.method }}</code>
+                <code class="detail-value">{{ streamRequest.method }}</code>
               </div>
               <div class="detail-item">
                 <span class="detail-label">请求头</span>
-                <pre class="detail-pre">{{ formatJson(quickTestResult.request.headers) }}</pre>
+                <pre class="detail-pre">{{ formatJson(streamRequest.headers) }}</pre>
               </div>
               <div class="detail-item">
                 <span class="detail-label">请求参数</span>
-                <pre class="detail-pre">{{ formatJson(quickTestResult.request.body) }}</pre>
+                <pre class="detail-pre">{{ formatJson(streamRequest.body) }}</pre>
               </div>
             </div>
           </div>
-          <div v-if="quickTestResult.response" class="result-section">
+          <div v-if="streamResponse" class="result-section">
             <div class="section-title-row" @click="toggleQuickSection('response')">
               <span>响应信息 (Response)</span>
               <span class="toggle-icon">{{ quickExpanded.response ? '▼' : '▶' }}</span>
             </div>
             <div v-if="quickExpanded.response" class="result-detail">
-              <div v-if="quickTestResult.response.status_code" class="detail-item">
+              <div v-if="streamResponse.status_code" class="detail-item">
                 <span class="detail-label">状态码</span>
-                <code class="detail-value" :class="quickTestResult.response.status_code < 400 ? 'status-ok' : 'status-err'">
-                  {{ quickTestResult.response.status_code }}
+                <code class="detail-value" :class="streamResponse.status_code < 400 ? 'status-ok' : 'status-err'">
+                  {{ streamResponse.status_code }}
                 </code>
               </div>
-              <div v-if="quickTestResult.response.elapsed_ms" class="detail-item">
-                <span class="detail-label">耗时</span>
-                <code class="detail-value">{{ quickTestResult.response.elapsed_ms }}ms</code>
+              <div v-if="streamTiming" class="detail-item">
+                <span class="detail-label">时间统计</span>
+                <div class="timing-grid">
+                  <div v-if="streamTiming.connect_elapsed_ms" class="timing-item">
+                    <span class="timing-label">连接耗时</span>
+                    <span class="timing-value">{{ streamTiming.connect_elapsed_ms }}ms</span>
+                  </div>
+                  <div v-if="streamTiming.transfer_elapsed_ms" class="timing-item">
+                    <span class="timing-label">传输耗时</span>
+                    <span class="timing-value">{{ streamTiming.transfer_elapsed_ms }}ms</span>
+                  </div>
+                  <div v-if="streamTiming.total_elapsed_ms" class="timing-item">
+                    <span class="timing-label">总耗时</span>
+                    <span class="timing-value highlight">{{ streamTiming.total_elapsed_ms }}ms</span>
+                  </div>
+                </div>
               </div>
-              <div v-if="quickTestResult.response.headers" class="detail-item">
+              <div v-if="streamResponse.headers" class="detail-item">
                 <span class="detail-label">响应头</span>
-                <pre class="detail-pre">{{ formatJson(quickTestResult.response.headers) }}</pre>
+                <pre class="detail-pre">{{ formatJson(streamResponse.headers) }}</pre>
               </div>
-              <div v-if="quickTestResult.response.body" class="detail-item">
+              <div v-if="streamResponse.body" class="detail-item">
                 <span class="detail-label">响应体</span>
-                <pre class="detail-pre">{{ formatBody(quickTestResult.response.body) }}</pre>
+                <pre class="detail-pre">{{ formatBody(streamResponse.body) }}</pre>
               </div>
-              <div v-if="quickTestResult.response.error" class="detail-item">
+              <div v-if="streamResponse.error" class="detail-item">
                 <span class="detail-label">错误信息</span>
-                <code class="detail-value status-err">{{ quickTestResult.response.error }}</code>
+                <code class="detail-value status-err">{{ streamResponse.error }}</code>
               </div>
             </div>
           </div>
@@ -409,22 +446,48 @@ const testResult = ref(null)
 const parseResult = ref(null)
 const importResult = ref(null)
 const expandedSections = ref({ request: true, response: true })
+
 const quickTesting = ref(false)
-const quickTestResult = ref(null)
+const streamPhases = ref([])
+const streamRequest = ref(null)
+const streamResponse = ref(null)
+const streamTiming = ref(null)
+const finalSuccess = ref(null)
 const quickExpanded = ref({ request: false, response: false })
 
 function providerLabel(provider) {
   const map = {
-    openai: 'OpenAI',
-    anthropic: 'Anthropic',
-    openrouter: 'OpenRouter',
-    deepseek: 'DeepSeek',
-    qwen: '通义千问',
-    siliconflow: '硅基流动',
-    groq: 'Groq',
-    custom: '自定义',
+    openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter',
+    deepseek: 'DeepSeek', qwen: '通义千问', siliconflow: '硅基流动',
+    groq: 'Groq', custom: '自定义',
   }
   return map[provider] || provider || '-'
+}
+
+function phaseLabel(phase) {
+  const map = {
+    init: '初始化',
+    request_prepared: '请求已构建',
+    connecting: '连接中',
+    response_received: '已收到响应',
+    completed: '已完成',
+    error: '出错',
+  }
+  return map[phase] || phase
+}
+
+function phaseClass(phase) {
+  if (phase.phase === 'error') return 'error'
+  if (phase.phase === 'completed') return phase.success ? 'success' : 'error'
+  return 'done'
+}
+
+function formatPhaseTime(phase) {
+  const t = phase.timing
+  if (!t) return ''
+  if (t.total_elapsed_ms) return `${t.total_elapsed_ms}ms`
+  if (t.connect_elapsed_ms) return `${t.connect_elapsed_ms}ms`
+  return ''
 }
 
 async function fetchConfig() {
@@ -470,7 +533,7 @@ async function openConfigForm() {
       api_key_masked: data.api_key_masked || '',
     }
   } catch (e) {
-    // already populated from currentConfig above
+    // already populated from currentConfig
   }
 
   showConfigForm.value = true
@@ -534,17 +597,37 @@ async function testConnection() {
 
 async function quickTest() {
   quickTesting.value = true
-  quickTestResult.value = null
+  streamPhases.value = []
+  streamRequest.value = null
+  streamResponse.value = null
+  streamTiming.value = null
+  finalSuccess.value = null
   quickExpanded.value = { request: false, response: false }
+
   try {
-    const res = await llmApi.testConnection()
-    quickTestResult.value = res.data.data
+    await llmApi.testConnectionStream((event) => {
+      streamPhases.value = [...streamPhases.value, event]
+
+      if (event.phase === 'request_prepared' && event.request) {
+        streamRequest.value = event.request
+      }
+      if (event.phase === 'response_received') {
+        // intermediate phase
+      }
+      if (event.phase === 'completed') {
+        streamResponse.value = event.response
+        streamTiming.value = event.timing
+        finalSuccess.value = event.success
+      }
+      if (event.phase === 'error') {
+        streamResponse.value = event.response
+        streamTiming.value = event.timing
+        finalSuccess.value = false
+      }
+    })
   } catch (e) {
-    quickTestResult.value = {
-      success: false,
-      message: e.response?.data?.detail || '测试请求失败',
-      response: { error: e.message || '未知错误' },
-    }
+    streamPhases.value = [...streamPhases.value, { phase: 'error', message: `SSE连接失败: ${e.message || '未知错误'}` }]
+    finalSuccess.value = false
   } finally {
     quickTesting.value = false
   }
@@ -900,11 +983,131 @@ onMounted(fetchConfig)
   color: var(--danger);
 }
 
+.result-header.pending {
+  background: rgba(33, 150, 243, 0.1);
+  color: #2196f3;
+}
+
 .result-message {
   padding: 8px 16px;
   font-size: 13px;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
+}
+
+.progress-timeline {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.timeline-item {
+  display: flex;
+  gap: 12px;
+  padding: 6px 0;
+  position: relative;
+}
+
+.timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 22px;
+  bottom: -6px;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-item.done .timeline-dot {
+  background: var(--success);
+}
+
+.timeline-item.success .timeline-dot {
+  background: var(--success);
+}
+
+.timeline-item.error .timeline-dot {
+  background: var(--danger);
+}
+
+.timeline-item.active .timeline-dot {
+  background: #2196f3;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 3px;
+  background: var(--text-muted);
+}
+
+.timeline-dot.pulsing {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+.timeline-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timeline-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.timeline-message {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.timing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.timing-item {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.timing-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.timing-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.timing-value.highlight {
+  color: var(--accent);
 }
 
 .result-section {

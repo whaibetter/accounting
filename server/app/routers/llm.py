@@ -1,19 +1,24 @@
+import json
 import logging
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import crud
-from app.llm_config import LlmConfigManager
-from app.llm_service import LlmService
+from app.llm_config import LlmConfigManager, PROVIDERS
+from app.llm_service import LlmService, _mask_api_key
 from app.dependencies import require_auth
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/llm", tags=["AI智能记账"], dependencies=[Depends(require_auth)])
+
+stream_router = APIRouter(prefix="/api/v1/llm", tags=["AI智能记账"])
 
 
 class LlmConfigUpdate(BaseModel):
@@ -112,6 +117,149 @@ async def test_connection():
     service = LlmService()
     result = await service.test_connection()
     return {"code": 200, "message": "测试完成", "data": result}
+
+
+@stream_router.get("/test/stream", summary="流式测试API连接(实时进度)")
+async def test_connection_stream(token: Optional[str] = None):
+    from app.auth import decode_token
+    if token:
+        try:
+            payload = decode_token(token)
+            if not payload or not payload.get("user_id"):
+                return StreamingResponse(
+                    iter([f"data: {json.dumps({'phase': 'error', 'message': '认证失败'}, ensure_ascii=False)}\n\n"]),
+                    media_type="text/event-stream",
+                )
+        except Exception:
+            return StreamingResponse(
+                iter([f"data: {json.dumps({'phase': 'error', 'message': '认证失败'}, ensure_ascii=False)}\n\n"]),
+                media_type="text/event-stream",
+            )
+
+    async def event_generator():
+        manager = LlmConfigManager()
+        if not manager.is_configured():
+            yield f"data: {json.dumps({'phase': 'error', 'message': 'API未配置，请先设置API密钥和提供商'}, ensure_ascii=False)}\n\n"
+            return
+
+        config = manager.get_resolved_config()
+        provider = config.get("provider", "openai")
+        provider_info = PROVIDERS.get(provider, {})
+        protocol = provider_info.get("protocol", "openai")
+        provider_name = provider_info.get("name", provider)
+
+        base_url = config.get("base_url", "").rstrip("/")
+        if protocol == "anthropic":
+            url = f"{base_url}/v1/messages"
+        else:
+            url = f"{base_url}/chat/completions"
+
+        safe_headers = {}
+        if protocol == "anthropic":
+            safe_headers = {
+                "x-api-key": _mask_api_key(config.get("api_key", "")),
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            }
+        else:
+            safe_headers = {
+                "Authorization": f"Bearer {_mask_api_key(config.get('api_key', ''))}",
+                "Content-Type": "application/json",
+            }
+
+        payload = {}
+        if protocol == "anthropic":
+            payload = {
+                "model": config.get("model", "claude-sonnet-4-20250514"),
+                "messages": [{"role": "user", "content": "Hi"}],
+                "max_tokens": 5,
+            }
+        else:
+            payload = {
+                "model": config.get("model", "gpt-4o-mini"),
+                "messages": [{"role": "user", "content": "Hi"}],
+                "max_tokens": 5,
+            }
+
+        request_start_time = time.time()
+        request_start_dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(request_start_time))
+
+        yield f"data: {json.dumps({'phase': 'init', 'message': f'准备测试连接 - {provider_name}', 'provider': provider, 'protocol': protocol}, ensure_ascii=False)}\n\n"
+        await asyncio_sleep(0.1)
+
+        yield f"data: {json.dumps({'phase': 'request_prepared', 'message': '请求信息已构建', 'request': {'url': url, 'method': 'POST', 'headers': safe_headers, 'body': payload}, 'timing': {'request_start': request_start_dt, 'request_start_ts': request_start_time}}, ensure_ascii=False)}\n\n"
+        await asyncio_sleep(0.1)
+
+        yield f"data: {json.dumps({'phase': 'connecting', 'message': f'正在连接 {base_url} ...'}, ensure_ascii=False)}\n\n"
+
+        import httpx
+        timeout = float(config.get("timeout", 30))
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                connect_start = time.time()
+                resp = await client.post(url, json=payload, headers={
+                    k: (config.get("api_key", "") if "key" in k.lower() or "auth" in k.lower() else v)
+                    for k, v in {
+                        **({"x-api-key": config.get("api_key", ""), "anthropic-version": "2023-06-01"} if protocol == "anthropic" else {"Authorization": f"Bearer {config.get('api_key', '')}"}),
+                        "Content-Type": "application/json",
+                    }.items()
+                })
+                response_start_time = time.time()
+                response_start_dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(response_start_time))
+                connect_elapsed = (response_start_time - connect_start) * 1000
+
+                yield f"data: {json.dumps({'phase': 'response_received', 'message': f'服务器已响应 (HTTP {resp.status_code})', 'timing': {'response_start': response_start_dt, 'response_start_ts': response_start_time, 'connect_elapsed_ms': round(connect_elapsed)}}, ensure_ascii=False)}\n\n"
+                await asyncio_sleep(0.1)
+
+                response_complete_time = time.time()
+                response_complete_dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(response_complete_time))
+                total_elapsed = (response_complete_time - request_start_time) * 1000
+
+                response_info = {
+                    "status_code": resp.status_code,
+                    "headers": dict(resp.headers),
+                    "body": resp.text[:2000],
+                    "elapsed_ms": round(total_elapsed),
+                }
+
+                success = resp.status_code == 200
+                result_message = ""
+                if success:
+                    data = resp.json()
+                    model = data.get("model", config.get("model", ""))
+                    result_message = f"连接成功，模型: {model}"
+                elif resp.status_code == 401:
+                    result_message = "API密钥无效"
+                elif resp.status_code == 429:
+                    result_message = "API调用频率超限，请稍后重试"
+                else:
+                    result_message = f"API返回错误 (HTTP {resp.status_code}): {resp.text[:200]}"
+
+                yield f"data: {json.dumps({'phase': 'completed', 'message': result_message, 'success': success, 'response': response_info, 'timing': {'response_complete': response_complete_dt, 'response_complete_ts': response_complete_time, 'total_elapsed_ms': round(total_elapsed), 'connect_elapsed_ms': round(connect_elapsed), 'transfer_elapsed_ms': round((response_complete_time - response_start_time) * 1000)}}, ensure_ascii=False)}\n\n"
+
+        except httpx.ConnectError as e:
+            error_time = time.time()
+            error_dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(error_time))
+            total_elapsed = (error_time - request_start_time) * 1000
+            yield f"data: {json.dumps({'phase': 'error', 'message': f'无法连接到API服务器 {base_url}', 'success': False, 'response': {'error': str(e), 'error_type': 'ConnectError'}, 'timing': {'error_time': error_dt, 'total_elapsed_ms': round(total_elapsed)}}, ensure_ascii=False)}\n\n"
+        except httpx.TimeoutException as e:
+            error_time = time.time()
+            error_dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(error_time))
+            total_elapsed = (error_time - request_start_time) * 1000
+            yield f"data: {json.dumps({'phase': 'error', 'message': '连接超时，请检查网络或增加超时时间', 'success': False, 'response': {'error': str(e), 'error_type': 'TimeoutException'}, 'timing': {'error_time': error_dt, 'total_elapsed_ms': round(total_elapsed)}}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            error_time = time.time()
+            error_dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(error_time))
+            total_elapsed = (error_time - request_start_time) * 1000
+            yield f"data: {json.dumps({'phase': 'error', 'message': f'连接测试失败: {str(e)}', 'success': False, 'response': {'error': str(e), 'error_type': type(e).__name__}, 'timing': {'error_time': error_dt, 'total_elapsed_ms': round(total_elapsed)}}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+async def asyncio_sleep(seconds):
+    import asyncio
+    await asyncio.sleep(seconds)
 
 
 @router.post("/parse", summary="解析自然语言为记账数据")
