@@ -3,18 +3,19 @@
     <div class="profile-header">
       <div class="avatar-circle">
         <AvatarUploader
-          v-if="authStore.user?.avatar"
+          v-if="authStore.user?.is_admin && authStore.user?.avatar"
           :modelValue="authStore.user.avatar"
           :size="56"
           @uploaded="onAvatarUploaded"
         />
+        <img v-else-if="authStore.user?.avatar" :src="getAvatarUrl(authStore.user.avatar)" class="avatar-img" />
         <span v-else class="avatar-letter">{{ authStore.nickname?.charAt(0) || '👤' }}</span>
       </div>
       <div class="header-info">
         <div class="profile-name">{{ authStore.nickname || '记账用户' }}</div>
         <div class="profile-desc">@{{ authStore.username }} · 轻松管理你的财务</div>
       </div>
-      <div class="edit-profile-btn" @click="showEditProfile = true">编辑</div>
+      <div v-if="authStore.user?.is_admin" class="edit-profile-btn" @click="showEditProfile = true">编辑</div>
     </div>
 
     <div class="asset-overview card">
@@ -209,6 +210,7 @@ import { useAccountStore } from '@/stores/data'
 import { useThemeStore, THEMES } from '@/stores/theme'
 import { authApi } from '@/services'
 import AvatarUploader from '@/components/AvatarUploader.vue'
+import api from '@/services/api'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -225,6 +227,13 @@ const confirmPassword = ref('')
 const isSubmitting = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
+
+function getAvatarUrl(avatar) {
+  if (!avatar) return ''
+  if (avatar.startsWith('http')) return avatar
+  const base = api.defaults?.baseURL ? api.defaults.baseURL.replace('/api/v1', '') : ''
+  return base + avatar
+}
 
 const profileForm = ref({
   nickname: authStore.user?.nickname || '',
@@ -372,6 +381,12 @@ onMounted(() => {
 
 .avatar-letter {
   line-height: 1;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .header-info {

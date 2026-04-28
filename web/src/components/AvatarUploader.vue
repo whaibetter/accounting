@@ -1,12 +1,12 @@
 <template>
   <div class="avatar-uploader">
-    <div class="avatar-preview" @click="triggerUpload">
+    <div class="avatar-preview" :class="{ readonly: !editable }" @click="triggerUpload">
       <img v-if="previewUrl" :src="previewUrl" class="avatar-img" />
       <div v-else class="avatar-placeholder">
         <span class="placeholder-icon">📷</span>
         <span class="placeholder-text">上传头像</span>
       </div>
-      <div class="avatar-overlay">
+      <div v-if="editable" class="avatar-overlay">
         <span>更换</span>
       </div>
     </div>
@@ -28,15 +28,26 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   size: { type: Number, default: 80 },
+  editable: { type: Boolean, default: undefined },
 })
 
 const emit = defineEmits(['update:modelValue', 'uploaded'])
+
+const authStore = useAuthStore()
+
+const canEdit = computed(() => {
+  if (props.editable !== undefined) return props.editable
+  return !!authStore.user?.is_admin
+})
+
+const editable = canEdit
 
 const fileInput = ref(null)
 const previewUrl = ref(props.modelValue || '')
@@ -54,7 +65,7 @@ watch(() => props.modelValue, (val) => {
 })
 
 function triggerUpload() {
-  if (uploading.value) return
+  if (uploading.value || !editable.value) return
   fileInput.value.click()
 }
 
@@ -128,13 +139,20 @@ async function handleFileSelect(e) {
   height: v-bind(size + 'px');
   border-radius: 50%;
   overflow: hidden;
-  cursor: pointer;
   border: 2px solid var(--border);
   transition: border-color 0.2s;
 }
 
-.avatar-preview:hover {
+.avatar-preview:not(.readonly) {
+  cursor: pointer;
+}
+
+.avatar-preview:not(.readonly):hover {
   border-color: var(--accent);
+}
+
+.avatar-preview.readonly {
+  cursor: default;
 }
 
 .avatar-img {
@@ -180,7 +198,7 @@ async function handleFileSelect(e) {
   font-weight: 600;
 }
 
-.avatar-preview:hover .avatar-overlay {
+.avatar-preview:not(.readonly):hover .avatar-overlay {
   opacity: 1;
 }
 

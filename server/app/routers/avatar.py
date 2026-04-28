@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from fastapi.responses import FileResponse
 
 from app.auth import update_user_profile, get_user_by_id
-from app.dependencies import require_auth
+from app.dependencies import require_auth, require_admin
 
 logger = logging.getLogger("avatar")
 
@@ -24,7 +24,7 @@ MAX_SIZE = 2 * 1024 * 1024
 @router.post("/upload", summary="上传头像")
 async def upload_avatar(
     file: UploadFile = File(...),
-    user_id: int = Depends(require_auth),
+    user_id: int = Depends(require_admin),
 ):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="仅支持 JPG、PNG、WebP 格式的图片")

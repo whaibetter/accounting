@@ -6,7 +6,7 @@
       <span style="width: 24px"></span>
     </div>
 
-    <div class="card">
+    <div v-if="isAdmin" class="card">
       <div class="section-title">LLM配置</div>
       <div v-if="config" class="config-info">
         <div class="config-row">
@@ -27,6 +27,18 @@
       <button class="btn-outline" @click="showConfigForm = true" style="width: 100%; margin-top: 12px">
         {{ config?.is_configured ? '修改配置' : '配置API' }}
       </button>
+    </div>
+
+    <div v-else-if="config" class="card">
+      <div class="section-title">AI服务状态</div>
+      <div class="config-info">
+        <div class="config-row">
+          <span class="config-label">状态</span>
+          <span class="config-value" :class="{ active: config.is_configured }">
+            {{ config.is_configured ? '✅ 可用' : '❌ 不可用' }}
+          </span>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -124,9 +136,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { llmApi } from '@/services'
 import CustomSelect from '@/components/CustomSelect.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const isAdmin = computed(() => !!authStore.user?.is_admin)
 
 const providerOptions = [
   { label: 'OpenAI', value: 'openai' },

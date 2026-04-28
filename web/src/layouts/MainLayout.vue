@@ -3,7 +3,19 @@
     <div class="layout-content">
       <router-view />
     </div>
-    <nav class="bottom-nav">
+    <nav v-if="isAdmin" class="bottom-nav">
+      <div class="nav-inner admin-nav">
+        <router-link to="/admin" class="nav-item" :class="{ active: currentRoute === 'Admin' }">
+          <span class="nav-icon">🛡️</span>
+          <span class="nav-label">管理</span>
+        </router-link>
+        <router-link to="/profile" class="nav-item" :class="{ active: currentRoute === 'Profile' }">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">我的</span>
+        </router-link>
+      </div>
+    </nav>
+    <nav v-else class="bottom-nav">
       <div class="nav-inner">
         <router-link to="/" class="nav-item" :class="{ active: currentRoute === 'Home' }">
           <span class="nav-icon">🏠</span>
@@ -35,9 +47,12 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const currentRoute = computed(() => route.name)
+const isAdmin = computed(() => !!authStore.user?.is_admin)
 </script>
 
 <style scoped>
@@ -79,6 +94,11 @@ const currentRoute = computed(() => route.name)
   box-shadow: var(--shadow-lg);
   border: 0.5px solid var(--border);
   pointer-events: auto;
+}
+
+.admin-nav {
+  justify-content: center;
+  gap: 24px;
 }
 
 .nav-item {

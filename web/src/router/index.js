@@ -72,9 +72,11 @@ router.beforeEach((to, from, next) => {
   if (!to.meta.public && !authStore.isLoggedIn) {
     next('/login')
   } else if (to.meta.public && authStore.isLoggedIn && to.name === 'Login') {
-    next('/')
+    next(authStore.user?.is_admin ? '/admin' : '/')
   } else if (to.meta.requiresAdmin && !authStore.user?.is_admin) {
     next('/')
+  } else if (authStore.isLoggedIn && authStore.user?.is_admin && to.path === '/') {
+    next('/admin')
   } else {
     next()
   }
