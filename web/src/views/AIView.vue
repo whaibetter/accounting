@@ -17,14 +17,30 @@
         </div>
         <div class="config-row">
           <span class="config-label">提供商</span>
-          <span class="config-value">{{ config.provider || '-' }}</span>
+          <span class="config-value">{{ providerLabel(config.provider) }}</span>
         </div>
         <div class="config-row">
           <span class="config-label">模型</span>
           <span class="config-value">{{ config.model || '-' }}</span>
         </div>
+        <div class="config-row">
+          <span class="config-label">API Key</span>
+          <span class="config-value">{{ config.api_key_masked || '未设置' }}</span>
+        </div>
+        <div class="config-row">
+          <span class="config-label">Temperature</span>
+          <span class="config-value">{{ config.temperature ?? '-' }}</span>
+        </div>
+        <div class="config-row">
+          <span class="config-label">Max Tokens</span>
+          <span class="config-value">{{ config.max_tokens ?? '-' }}</span>
+        </div>
+        <div class="config-row">
+          <span class="config-label">超时时间</span>
+          <span class="config-value">{{ config.timeout ? config.timeout + '秒' : '-' }}</span>
+        </div>
       </div>
-      <button class="btn-outline" @click="showConfigForm = true" style="width: 100%; margin-top: 12px">
+      <button class="btn-outline" @click="openConfigForm" style="width: 100%; margin-top: 12px">
         {{ config?.is_configured ? '修改配置' : '配置API' }}
       </button>
     </div>
@@ -93,10 +109,10 @@
       </div>
     </div>
 
-    <div v-if="showConfigForm" class="modal-overlay" @click.self="showConfigForm = false">
+    <div v-if="showConfigForm" class="modal-overlay" @click.self="closeConfigForm">
       <div class="form-modal">
         <div class="form-header">
-          <span class="close-btn" @click="showConfigForm = false">✕</span>
+          <span class="close-btn" @click="closeConfigForm">✕</span>
           <span class="form-title">配置LLM API</span>
           <span style="width: 20px"></span>
         </div>
@@ -113,7 +129,20 @@
           </div>
           <div class="form-field">
             <label>API Key</label>
-            <input v-model="configForm.api_key" type="password" placeholder="输入API密钥" class="form-input" />
+            <div class="api-key-wrapper">
+              <input
+                v-model="configForm.api_key"
+                :type="showApiKey ? 'text' : 'password'"
+                :placeholder="configForm.has_api_key ? configForm.api_key_masked || '已配置，留空保持不变' : '输入API密钥'"
+                class="form-input"
+              />
+              <span class="toggle-visibility" @click="showApiKey = !showApiKey">
+                {{ showApiKey ? '🙈' : '👁' }}
+              </span>
+            </div>
+            <div v-if="configForm.has_api_key && !configForm.api_key" class="field-hint">
+              已配置API密钥，留空则保持不变
+            </div>
           </div>
           <div class="form-field">
             <label>Base URL</label>
@@ -123,11 +152,86 @@
             <label>模型</label>
             <input v-model="configForm.model" type="text" placeholder="模型名称" class="form-input" />
           </div>
+          <div class="form-field">
+            <label>Temperature (0-2)</label>
+            <input v-model.number="configForm.temperature" type="number" min="0" max="2" step="0.1" class="form-input" />
+          </div>
+          <div class="form-field">
+            <label>Max Tokens (1-32768)</label>
+            <input v-model.number="configForm.max_tokens" type="number" min="1" max="32768" class="form-input" />
+          </div>
+          <div class="form-field">
+            <label>超时时间/秒 (5-120)</label>
+            <input v-model.number="configForm.timeout" type="number" min="5" max="120" class="form-input" />
+          </div>
           <div class="action-row">
             <button class="btn-outline" @click="testConnection" :disabled="testing" style="flex: 1">
               {{ testing ? '测试中...' : '测试连接' }}
             </button>
             <button class="btn-primary" @click="saveConfig" style="flex: 1">保存</button>
+          </div>
+
+          <div v-if="testResult" class="test-result">
+            <div class="result-header" :class="testResult.success ? 'success' : 'error'">
+              {{ testResult.success ? '✅ 连接成功' : '❌ 连接失败' }}
+            </div>
+            <div class="result-message">{{ testResult.message }}</div>
+
+            <div v-if="testResult.request" class="result-section">
+              <div class="section-title-row" @click="toggleSection('request')">
+                <span>请求信息 (Request)</span>
+                <span class="toggle-icon">{{ expandedSections.request ? '▼' : '▶' }}</span>
+              </div>
+              <div v-if="expandedSections.request" class="result-detail">
+                <div class="detail-item">
+                  <span class="detail-label">请求URL</span>
+                  <code class="detail-value">{{ testResult.request.url }}</code>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">请求方法</span>
+                  <code class="detail-value">{{ testResult.request.method }}</code>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">请求头</span>
+                  <pre class="detail-pre">{{ formatJson(testResult.request.headers) }}</pre>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">请求参数</span>
+                  <pre class="detail-pre">{{ formatJson(testResult.request.body) }}</pre>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="testResult.response" class="result-section">
+              <div class="section-title-row" @click="toggleSection('response')">
+                <span>响应信息 (Response)</span>
+                <span class="toggle-icon">{{ expandedSections.response ? '▼' : '▶' }}</span>
+              </div>
+              <div v-if="expandedSections.response" class="result-detail">
+                <div v-if="testResult.response.status_code" class="detail-item">
+                  <span class="detail-label">状态码</span>
+                  <code class="detail-value" :class="testResult.response.status_code < 400 ? 'status-ok' : 'status-err'">
+                    {{ testResult.response.status_code }}
+                  </code>
+                </div>
+                <div v-if="testResult.response.elapsed_ms" class="detail-item">
+                  <span class="detail-label">耗时</span>
+                  <code class="detail-value">{{ testResult.response.elapsed_ms }}ms</code>
+                </div>
+                <div v-if="testResult.response.headers" class="detail-item">
+                  <span class="detail-label">响应头</span>
+                  <pre class="detail-pre">{{ formatJson(testResult.response.headers) }}</pre>
+                </div>
+                <div v-if="testResult.response.body" class="detail-item">
+                  <span class="detail-label">响应体</span>
+                  <pre class="detail-pre">{{ formatBody(testResult.response.body) }}</pre>
+                </div>
+                <div v-if="testResult.response.error" class="detail-item">
+                  <span class="detail-label">错误信息</span>
+                  <code class="detail-value status-err">{{ testResult.response.error }}</code>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -147,17 +251,36 @@ const isAdmin = computed(() => !!authStore.user?.is_admin)
 const providerOptions = [
   { label: 'OpenAI', value: 'openai' },
   { label: 'Anthropic', value: 'anthropic' },
+  { label: 'OpenRouter', value: 'openrouter' },
   { label: '自定义', value: 'custom' },
 ]
 
 const config = ref(null)
 const showConfigForm = ref(false)
-const configForm = ref({ provider: 'openai', api_key: '', base_url: '', model: '' })
+const showApiKey = ref(false)
+const configForm = ref({
+  provider: 'openai',
+  api_key: '',
+  base_url: '',
+  model: '',
+  temperature: 0.3,
+  max_tokens: 1024,
+  timeout: 30,
+  has_api_key: false,
+  api_key_masked: '',
+})
 const inputText = ref('')
 const parsing = ref(false)
 const testing = ref(false)
+const testResult = ref(null)
 const parseResult = ref(null)
 const importResult = ref(null)
+const expandedSections = ref({ request: true, response: true })
+
+function providerLabel(provider) {
+  const map = { openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter', custom: '自定义' }
+  return map[provider] || provider || '-'
+}
 
 async function fetchConfig() {
   try {
@@ -168,10 +291,49 @@ async function fetchConfig() {
   }
 }
 
+async function openConfigForm() {
+  testResult.value = null
+  showApiKey.value = false
+  try {
+    const res = await llmApi.getConfigForEdit()
+    const data = res.data.data
+    configForm.value = {
+      provider: data.provider || 'openai',
+      api_key: '',
+      base_url: data.base_url || '',
+      model: data.model || '',
+      temperature: data.temperature ?? 0.3,
+      max_tokens: data.max_tokens ?? 1024,
+      timeout: data.timeout ?? 30,
+      has_api_key: data.has_api_key || false,
+      api_key_masked: data.api_key_masked || '',
+    }
+  } catch (e) {
+    configForm.value = {
+      provider: 'openai',
+      api_key: '',
+      base_url: '',
+      model: '',
+      temperature: 0.3,
+      max_tokens: 1024,
+      timeout: 30,
+      has_api_key: false,
+      api_key_masked: '',
+    }
+  }
+  showConfigForm.value = true
+}
+
+function closeConfigForm() {
+  showConfigForm.value = false
+  testResult.value = null
+}
+
 function onProviderChange() {
   const defaults = {
     openai: { base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-    anthropic: { base_url: 'https://api.anthropic.com', model: 'claude-3-haiku-20240307' },
+    anthropic: { base_url: 'https://api.anthropic.com', model: 'claude-sonnet-4-20250514' },
+    openrouter: { base_url: 'https://openrouter.ai/api/v1', model: 'minimax/minimax-m2.5:free' },
     custom: { base_url: '', model: '' },
   }
   const d = defaults[configForm.value.provider] || defaults.custom
@@ -183,10 +345,12 @@ async function saveConfig() {
   try {
     const data = {}
     for (const [k, v] of Object.entries(configForm.value)) {
-      if (v) data[k] = v
+      if (k === 'has_api_key' || k === 'api_key_masked') continue
+      if (v !== '' && v !== null && v !== undefined) data[k] = v
     }
     await llmApi.updateConfig(data)
     showConfigForm.value = false
+    testResult.value = null
     fetchConfig()
     alert('配置保存成功')
   } catch (e) {
@@ -196,14 +360,43 @@ async function saveConfig() {
 
 async function testConnection() {
   testing.value = true
+  testResult.value = null
+  expandedSections.value = { request: true, response: true }
   try {
     const res = await llmApi.testConnection()
-    const result = res.data.data
-    alert(result.success ? '连接成功！' : `连接失败: ${result.message}`)
+    testResult.value = res.data.data
   } catch (e) {
-    alert('测试失败')
+    testResult.value = {
+      success: false,
+      message: e.response?.data?.detail || '测试请求失败',
+      response: { error: e.message || '未知错误' },
+    }
   } finally {
     testing.value = false
+  }
+}
+
+function toggleSection(section) {
+  expandedSections.value[section] = !expandedSections.value[section]
+}
+
+function formatJson(obj) {
+  if (!obj) return ''
+  try {
+    if (typeof obj === 'string') return obj
+    return JSON.stringify(obj, null, 2)
+  } catch {
+    return String(obj)
+  }
+}
+
+function formatBody(body) {
+  if (!body) return ''
+  try {
+    const parsed = JSON.parse(body)
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    return body
   }
 }
 
@@ -272,6 +465,9 @@ onMounted(fetchConfig)
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+  word-break: break-all;
+  text-align: right;
+  max-width: 60%;
 }
 
 .config-value.active {
@@ -407,8 +603,8 @@ onMounted(fetchConfig)
   border-radius: 20px;
   padding: 24px;
   width: 100%;
-  max-width: 380px;
-  max-height: 80vh;
+  max-width: 420px;
+  max-height: 85vh;
   overflow-y: auto;
 }
 
@@ -443,9 +639,152 @@ onMounted(fetchConfig)
   font-size: 14px;
   color: var(--text-primary);
   background: var(--bg-primary);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-input:focus {
   border-color: var(--accent);
+  outline: none;
+}
+
+.api-key-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.api-key-wrapper .form-input {
+  padding-right: 40px;
+}
+
+.toggle-visibility {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  font-size: 16px;
+  user-select: none;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.test-result {
+  margin-top: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.result-header {
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.result-header.success {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--success);
+}
+
+.result-header.error {
+  background: rgba(244, 67, 54, 0.1);
+  color: var(--danger);
+}
+
+.result-message {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.result-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.result-section:last-child {
+  border-bottom: none;
+}
+
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.section-title-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.toggle-icon {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.result-detail {
+  padding: 8px 16px 12px;
+}
+
+.detail-item {
+  margin-bottom: 8px;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.04);
+  word-break: break-all;
+}
+
+.detail-value.status-ok {
+  color: var(--success);
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.detail-value.status-err {
+  color: var(--danger);
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.detail-pre {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
 }
 </style>

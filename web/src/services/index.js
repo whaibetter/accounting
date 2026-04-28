@@ -121,6 +121,9 @@ export const llmApi = {
   getConfig() {
     return api.get('/llm/config')
   },
+  getConfigForEdit() {
+    return api.get('/llm/config/edit')
+  },
   updateConfig(data) {
     return api.put('/llm/config', data)
   },

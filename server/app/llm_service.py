@@ -174,9 +174,10 @@ class LlmService:
         测试API连接是否正常。
 
         发送一个简单的请求验证API密钥和端点是否可用。
+        返回详细的请求和响应信息，便于管理员排查问题。
 
         Returns:
-            Dict[str, Any]: 测试结果，包含success、message、model等字段
+            Dict[str, Any]: 测试结果，包含success、message、request、response等字段
 
         Raises:
             ValueError: API未配置时
@@ -195,32 +196,82 @@ class LlmService:
                 return await self._test_anthropic(config)
             else:
                 return await self._test_openai(config)
-        except httpx.ConnectError:
+        except httpx.ConnectError as e:
+            base_url = config.get("base_url", "")
+            url = f"{base_url.rstrip('/')}/v1/messages" if provider == "anthropic" else f"{base_url.rstrip('/')}/chat/completions"
+            safe_headers = self._safe_headers(config, provider)
+            payload = self._build_test_payload(config, provider)
             return {
                 "success": False,
-                "message": f"无法连接到API服务器 {config.get('base_url', '')}",
+                "message": f"无法连接到API服务器 {base_url}",
+                "request": {
+                    "url": url,
+                    "method": "POST",
+                    "headers": safe_headers,
+                    "body": payload,
+                },
+                "response": {
+                    "error": str(e),
+                    "error_type": "ConnectError",
+                },
             }
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as e:
+            base_url = config.get("base_url", "")
+            url = f"{base_url.rstrip('/')}/v1/messages" if provider == "anthropic" else f"{base_url.rstrip('/')}/chat/completions"
+            safe_headers = self._safe_headers(config, provider)
+            payload = self._build_test_payload(config, provider)
             return {
                 "success": False,
                 "message": "连接超时，请检查网络或增加超时时间",
+                "request": {
+                    "url": url,
+                    "method": "POST",
+                    "headers": safe_headers,
+                    "body": payload,
+                },
+                "response": {
+                    "error": str(e),
+                    "error_type": "TimeoutException",
+                },
             }
         except Exception as e:
             return {
                 "success": False,
                 "message": f"连接测试失败: {str(e)}",
+                "response": {
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            }
+
+    def _safe_headers(self, config: Dict[str, Any], provider: str) -> Dict[str, str]:
+        if provider == "anthropic":
+            return {
+                "x-api-key": _mask_api_key(config.get("api_key", "")),
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            }
+        else:
+            return {
+                "Authorization": f"Bearer {_mask_api_key(config.get('api_key', ''))}",
+                "Content-Type": "application/json",
+            }
+
+    def _build_test_payload(self, config: Dict[str, Any], provider: str) -> Dict[str, Any]:
+        if provider == "anthropic":
+            return {
+                "model": config.get("model", "claude-sonnet-4-20250514"),
+                "messages": [{"role": "user", "content": "Hi"}],
+                "max_tokens": 5,
+            }
+        else:
+            return {
+                "model": config.get("model", "gpt-4o-mini"),
+                "messages": [{"role": "user", "content": "Hi"}],
+                "max_tokens": 5,
             }
 
     async def _test_openai(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        测试OpenAI格式API连接。
-
-        Args:
-            config: 解析后的配置
-
-        Returns:
-            Dict[str, Any]: 测试结果
-        """
         base_url = config.get("base_url", "https://api.openai.com/v1").rstrip("/")
         url = f"{base_url}/chat/completions"
 
@@ -233,38 +284,85 @@ class LlmService:
             "Authorization": f"Bearer {config.get('api_key', '')}",
             "Content-Type": "application/json",
         }
+        safe_headers = {
+            "Authorization": f"Bearer {_mask_api_key(config.get('api_key', ''))}",
+            "Content-Type": "application/json",
+        }
 
-        async with self._get_client() as client:
-            resp = await client.post(url, json=payload, headers=headers)
+        request_info = {
+            "url": url,
+            "method": "POST",
+            "headers": safe_headers,
+            "body": payload,
+        }
 
-            if resp.status_code == 200:
-                data = resp.json()
-                model = data.get("model", config.get("model", ""))
-                return {
-                    "success": True,
-                    "message": f"连接成功，模型: {model}",
-                    "model": model,
+        start_time = time.time()
+        try:
+            async with self._get_client() as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                elapsed_ms = (time.time() - start_time) * 1000
+
+                response_info = {
+                    "status_code": resp.status_code,
+                    "headers": dict(resp.headers),
+                    "body": resp.text[:2000],
+                    "elapsed_ms": round(elapsed_ms),
                 }
-            elif resp.status_code == 401:
-                return {"success": False, "message": "API密钥无效"}
-            elif resp.status_code == 429:
-                return {"success": False, "message": "API调用频率超限，请稍后重试"}
-            else:
-                return {
-                    "success": False,
-                    "message": f"API返回错误 (HTTP {resp.status_code}): {resp.text[:200]}",
-                }
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    model = data.get("model", config.get("model", ""))
+                    return {
+                        "success": True,
+                        "message": f"连接成功，模型: {model}",
+                        "model": model,
+                        "request": request_info,
+                        "response": response_info,
+                    }
+                elif resp.status_code == 401:
+                    return {
+                        "success": False,
+                        "message": "API密钥无效",
+                        "request": request_info,
+                        "response": response_info,
+                    }
+                elif resp.status_code == 429:
+                    return {
+                        "success": False,
+                        "message": "API调用频率超限，请稍后重试",
+                        "request": request_info,
+                        "response": response_info,
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"API返回错误 (HTTP {resp.status_code}): {resp.text[:200]}",
+                        "request": request_info,
+                        "response": response_info,
+                    }
+        except httpx.ConnectError as e:
+            return {
+                "success": False,
+                "message": f"无法连接到API服务器 {base_url}",
+                "request": request_info,
+                "response": {"error": str(e), "error_type": "ConnectError"},
+            }
+        except httpx.TimeoutException as e:
+            return {
+                "success": False,
+                "message": "连接超时，请检查网络或增加超时时间",
+                "request": request_info,
+                "response": {"error": str(e), "error_type": "TimeoutException"},
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"测试失败: {str(e)}",
+                "request": request_info,
+                "response": {"error": str(e), "error_type": type(e).__name__},
+            }
 
     async def _test_anthropic(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        测试Anthropic格式API连接。
-
-        Args:
-            config: 解析后的配置
-
-        Returns:
-            Dict[str, Any]: 测试结果
-        """
         base_url = config.get("base_url", "https://api.anthropic.com").rstrip("/")
         url = f"{base_url}/v1/messages"
 
@@ -278,26 +376,83 @@ class LlmService:
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         }
+        safe_headers = {
+            "x-api-key": _mask_api_key(config.get("api_key", "")),
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
 
-        async with self._get_client() as client:
-            resp = await client.post(url, json=payload, headers=headers)
+        request_info = {
+            "url": url,
+            "method": "POST",
+            "headers": safe_headers,
+            "body": payload,
+        }
 
-            if resp.status_code == 200:
-                model = config.get("model", "")
-                return {
-                    "success": True,
-                    "message": f"连接成功，模型: {model}",
-                    "model": model,
+        start_time = time.time()
+        try:
+            async with self._get_client() as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                elapsed_ms = (time.time() - start_time) * 1000
+
+                response_info = {
+                    "status_code": resp.status_code,
+                    "headers": dict(resp.headers),
+                    "body": resp.text[:2000],
+                    "elapsed_ms": round(elapsed_ms),
                 }
-            elif resp.status_code == 401:
-                return {"success": False, "message": "API密钥无效"}
-            elif resp.status_code == 429:
-                return {"success": False, "message": "API调用频率超限，请稍后重试"}
-            else:
-                return {
-                    "success": False,
-                    "message": f"API返回错误 (HTTP {resp.status_code}): {resp.text[:200]}",
-                }
+
+                if resp.status_code == 200:
+                    model = config.get("model", "")
+                    return {
+                        "success": True,
+                        "message": f"连接成功，模型: {model}",
+                        "model": model,
+                        "request": request_info,
+                        "response": response_info,
+                    }
+                elif resp.status_code == 401:
+                    return {
+                        "success": False,
+                        "message": "API密钥无效",
+                        "request": request_info,
+                        "response": response_info,
+                    }
+                elif resp.status_code == 429:
+                    return {
+                        "success": False,
+                        "message": "API调用频率超限，请稍后重试",
+                        "request": request_info,
+                        "response": response_info,
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"API返回错误 (HTTP {resp.status_code}): {resp.text[:200]}",
+                        "request": request_info,
+                        "response": response_info,
+                    }
+        except httpx.ConnectError as e:
+            return {
+                "success": False,
+                "message": f"无法连接到API服务器 {base_url}",
+                "request": request_info,
+                "response": {"error": str(e), "error_type": "ConnectError"},
+            }
+        except httpx.TimeoutException as e:
+            return {
+                "success": False,
+                "message": "连接超时，请检查网络或增加超时时间",
+                "request": request_info,
+                "response": {"error": str(e), "error_type": "TimeoutException"},
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"测试失败: {str(e)}",
+                "request": request_info,
+                "response": {"error": str(e), "error_type": type(e).__name__},
+            }
 
     async def parse_text(self, text: str) -> Dict[str, Any]:
         if not text or not text.strip():

@@ -52,6 +52,24 @@ def get_config():
     return {"code": 200, "message": "success", "data": config}
 
 
+@router.get("/config/edit", summary="获取LLM配置(编辑用)")
+def get_config_for_edit():
+    manager = LlmConfigManager()
+    config = manager.get_config(decrypt=True)
+
+    if config.get("api_key"):
+        key = config["api_key"]
+        if len(key) > 8:
+            config["api_key_masked"] = key[:4] + "*" * (len(key) - 8) + key[-4:]
+        else:
+            config["api_key_masked"] = "****"
+        config["api_key"] = ""
+
+    config["is_configured"] = manager.is_configured()
+    config["has_api_key"] = bool(manager.get_config(decrypt=False).get("api_key"))
+    return {"code": 200, "message": "success", "data": config}
+
+
 @router.put("/config", summary="更新LLM配置")
 def update_config(req: LlmConfigUpdate):
     manager = LlmConfigManager()
@@ -59,6 +77,11 @@ def update_config(req: LlmConfigUpdate):
 
     if not update_data:
         raise HTTPException(status_code=400, detail="没有需要更新的配置")
+
+    if "api_key" not in update_data or not update_data.get("api_key"):
+        current = manager.get_config(decrypt=False)
+        if current.get("api_key"):
+            update_data.pop("api_key", None)
 
     try:
         config = manager.update_config(**update_data)
