@@ -354,7 +354,7 @@ function providerLabel(provider) {
   const map = {
     openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter',
     deepseek: 'DeepSeek', qwen: '通义千问', siliconflow: '硅基流动',
-    groq: 'Groq', custom: '自定义',
+    groq: 'Groq', nvidia: 'NVIDIA NIM', custom: '自定义',
   }
   return map[provider] || provider || '-'
 }

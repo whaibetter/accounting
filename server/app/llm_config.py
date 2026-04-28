@@ -76,6 +76,19 @@ PROVIDERS = {
         "default_model": "llama-3.3-70b-versatile",
         "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
     },
+    "nvidia": {
+        "name": "NVIDIA NIM",
+        "protocol": "openai",
+        "default_base_url": "https://integrate.api.nvidia.com/v1",
+        "default_model": "deepseek-ai/deepseek-v4-flash",
+        "models": [
+            "deepseek-ai/deepseek-v4-flash",
+            "deepseek-ai/deepseek-r1",
+            "nvidia/llama-3.1-nemotron-70b-instruct",
+            "meta/llama-3.1-405b-instruct",
+            "qwen/qwen2.5-72b-instruct",
+        ],
+    },
 }
 
 DEFAULT_API_KEY = "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"
@@ -119,6 +132,7 @@ class LlmConfigManager:
     def __init__(self, config_file: Optional[Path] = None):
         self.config_file = config_file or CONFIG_FILE
         DATA_DIR.mkdir(exist_ok=True)
+        self._init_default_providers()
 
     def get_config(self, decrypt: bool = True) -> Dict[str, Any]:
         if not self.config_file.exists():
@@ -158,6 +172,45 @@ class LlmConfigManager:
                 pass
         except IOError as e:
             logger.error(f"初始化默认配置失败: {e}")
+
+    def _init_default_providers(self) -> None:
+        if PROVIDERS_FILE.exists():
+            return
+
+        default_presets = [
+            {
+                "name": "OpenRouter",
+                "provider": "openrouter",
+                "protocol": "openai",
+                "base_url": "https://openrouter.ai/api/v1",
+                "model": "minimax/minimax-m2.5:free",
+                "temperature": 0.3,
+                "max_tokens": 1024,
+                "timeout": 60,
+                "api_key": _encrypt_value(DEFAULT_API_KEY),
+            },
+            {
+                "name": "NVIDIA NIM",
+                "provider": "nvidia",
+                "protocol": "openai",
+                "base_url": "https://integrate.api.nvidia.com/v1",
+                "model": "deepseek-ai/deepseek-v4-flash",
+                "temperature": 0.6,
+                "max_tokens": 16384,
+                "timeout": 120,
+                "api_key": _encrypt_value("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"),
+            },
+        ]
+
+        try:
+            with open(PROVIDERS_FILE, "w", encoding="utf-8") as f:
+                json.dump(default_presets, f, ensure_ascii=False, indent=2)
+            try:
+                os.chmod(PROVIDERS_FILE, 0o600)
+            except OSError:
+                pass
+        except IOError as e:
+            logger.error(f"初始化默认提供商配置失败: {e}")
 
     def update_config(self, **kwargs) -> Dict[str, Any]:
         current = self.get_config(decrypt=False)

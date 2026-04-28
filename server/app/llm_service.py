@@ -157,17 +157,9 @@ class LlmService:
         self.config_manager = LlmConfigManager()
 
     def _get_client(self) -> httpx.AsyncClient:
-        """
-        创建HTTP客户端。
-
-        根据配置的timeout创建异步HTTP客户端。
-
-        Returns:
-            httpx.AsyncClient: 异步HTTP客户端
-        """
         config = self.config_manager.get_resolved_config()
         timeout = config.get("timeout", 30)
-        return httpx.AsyncClient(timeout=float(timeout))
+        return httpx.AsyncClient(timeout=float(timeout), proxy=None)
 
     async def test_connection(self) -> Dict[str, Any]:
         """

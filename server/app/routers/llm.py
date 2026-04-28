@@ -245,7 +245,7 @@ async def test_connection_stream(token: Optional[str] = None):
             }
 
         try:
-            async with httpx.AsyncClient(timeout=timeout_val) as client:
+            async with httpx.AsyncClient(timeout=timeout_val, proxy=None) as client:
                 connect_start = time.time()
                 resp = await client.post(url, json=payload, headers=real_headers)
                 response_start_time = time.time()
