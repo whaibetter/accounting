@@ -131,17 +131,29 @@ export const llmApi = {
   getProviders() {
     return api.get('/llm/providers')
   },
+  getSavedProviders() {
+    return api.get('/llm/providers/saved')
+  },
+  saveProviderConfig(data) {
+    return api.post('/llm/providers/save', data)
+  },
+  loadProviderConfig(name) {
+    return api.post('/llm/providers/load', { name })
+  },
+  deleteProviderConfig(name) {
+    return api.post('/llm/providers/delete', { name })
+  },
   testConnection() {
     return api.post('/llm/test')
   },
   testConnectionStream(onEvent) {
     const authStore = useAuthStore()
     const token = authStore.token
-    const base = api.defaults.baseURL || '/accounting/api/v1'
-    const url = `${base}/llm/test/stream`
+    const baseUrl = api.defaults.baseURL || '/accounting/api/v1'
+    const url = `${baseUrl}/llm/test/stream?token=${encodeURIComponent(token)}`
 
     return new Promise((resolve, reject) => {
-      const evtSource = new EventSource(url + (url.includes('?') ? '&' : '?') + `token=${encodeURIComponent(token)}`)
+      const evtSource = new EventSource(url)
 
       evtSource.onmessage = (event) => {
         try {
@@ -156,14 +168,14 @@ export const llmApi = {
         }
       }
 
-      evtSource.onerror = (e) => {
+      evtSource.onerror = () => {
         evtSource.close()
-        reject(e)
+        reject(new Error('SSE连接失败，请检查网络或刷新页面重试'))
       }
 
       setTimeout(() => {
         evtSource.close()
-        reject(new Error('SSE timeout'))
+        reject(new Error('SSE连接超时'))
       }, 120000)
     })
   },

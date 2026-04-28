@@ -1,32 +1,10 @@
-"""
-大模型API配置存储与管理模块。
-
-功能描述：
-    管理大模型API的配置信息，包括：
-    - API密钥安全存储（AES加密）
-    - 多平台配置支持（OpenAI、Anthropic格式）
-    - 模型参数配置（temperature、max_tokens等）
-    - 配置的读取、更新与验证
-
-使用方法：
-    from app.llm_config import LlmConfigManager
-
-    manager = LlmConfigManager()
-    config = manager.get_config()
-    manager.update_config(api_key="sk-xxx", provider="openai")
-
-安全说明：
-    API密钥使用AES-256-CBC加密存储，密钥基于机器特征生成。
-    配置文件存储在 data/llm_config.json，权限设为仅所有者可读写。
-"""
-
 import json
 import os
 import hashlib
 import base64
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from cryptography.fernet import Fernet
 
@@ -34,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 CONFIG_FILE = DATA_DIR / "llm_config.json"
+PROVIDERS_FILE = DATA_DIR / "llm_providers.json"
 
 PROVIDERS = {
     "openai": {
@@ -97,16 +76,9 @@ PROVIDERS = {
         "default_model": "llama-3.3-70b-versatile",
         "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
     },
-    "custom": {
-        "name": "自定义",
-        "protocol": "openai",
-        "default_base_url": "",
-        "default_model": "",
-        "models": [],
-    },
 }
 
-DEFAULT_API_KEY = "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"
+DEFAULT_API_KEY = "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"
 
 DEFAULT_CONFIG = {
     "provider": "openrouter",
@@ -120,30 +92,12 @@ DEFAULT_CONFIG = {
 
 
 def _get_machine_key() -> bytes:
-    """
-    基于机器特征生成加密密钥。
-
-    使用项目数据目录路径作为密钥种子，确保同一部署实例的密钥一致性。
-    生成Fernet兼容的32字节base64编码密钥。
-
-    Returns:
-        bytes: Fernet兼容的加密密钥
-    """
     seed = str(DATA_DIR.resolve()) + "accounting_llm_config_salt"
     key_hash = hashlib.sha256(seed.encode()).digest()
     return base64.urlsafe_b64encode(key_hash)
 
 
 def _encrypt_value(plain_text: str) -> str:
-    """
-    使用AES加密敏感值。
-
-    Args:
-        plain_text: 明文字符串
-
-    Returns:
-        str: 加密后的base64编码字符串
-    """
     if not plain_text:
         return ""
     fernet = Fernet(_get_machine_key())
@@ -151,15 +105,6 @@ def _encrypt_value(plain_text: str) -> str:
 
 
 def _decrypt_value(encrypted: str) -> str:
-    """
-    解密AES加密的值。
-
-    Args:
-        encrypted: 加密的base64编码字符串
-
-    Returns:
-        str: 解密后的明文字符串
-    """
     if not encrypted:
         return ""
     try:
@@ -171,39 +116,11 @@ def _decrypt_value(encrypted: str) -> str:
 
 
 class LlmConfigManager:
-    """
-    大模型API配置管理器。
-
-    负责配置的持久化存储、加密解密和验证。
-    配置文件使用JSON格式，API密钥字段加密存储。
-
-    Attributes:
-        config_file: 配置文件路径
-    """
-
     def __init__(self, config_file: Optional[Path] = None):
-        """
-        初始化配置管理器。
-
-        Args:
-            config_file: 配置文件路径，默认为 data/llm_config.json
-        """
         self.config_file = config_file or CONFIG_FILE
         DATA_DIR.mkdir(exist_ok=True)
 
     def get_config(self, decrypt: bool = True) -> Dict[str, Any]:
-        """
-        获取当前配置。
-
-        读取配置文件并返回配置字典。
-        如果配置文件不存在，自动初始化默认配置并保存。
-
-        Args:
-            decrypt: 是否解密API密钥，默认True
-
-        Returns:
-            Dict[str, Any]: 配置字典
-        """
         if not self.config_file.exists():
             self._init_default_config()
             return {**DEFAULT_CONFIG, "api_key": DEFAULT_API_KEY if decrypt else _encrypt_value(DEFAULT_API_KEY)}
@@ -225,11 +142,6 @@ class LlmConfigManager:
         return config
 
     def _init_default_config(self) -> None:
-        """
-        初始化默认配置文件。
-
-        将默认配置写入文件，API密钥加密存储。
-        """
         config = {}
         for key, value in DEFAULT_CONFIG.items():
             if key == "api_key" and value:
@@ -248,25 +160,11 @@ class LlmConfigManager:
             logger.error(f"初始化默认配置失败: {e}")
 
     def update_config(self, **kwargs) -> Dict[str, Any]:
-        """
-        更新配置。
-
-        合并传入的配置项到现有配置中，API密钥加密后存储。
-
-        Args:
-            **kwargs: 需要更新的配置键值对
-
-        Returns:
-            Dict[str, Any]: 更新后的配置（含解密的api_key）
-
-        Raises:
-            ValueError: 配置值验证失败时
-        """
         current = self.get_config(decrypt=False)
 
         if "provider" in kwargs:
             provider = kwargs["provider"]
-            if provider not in PROVIDERS:
+            if provider not in PROVIDERS and provider != "custom":
                 raise ValueError(f"不支持的提供商: {provider}，支持: {list(PROVIDERS.keys())}")
 
         if "temperature" in kwargs:
@@ -285,7 +183,7 @@ class LlmConfigManager:
                 raise ValueError("timeout必须在5-120秒之间")
 
         for key, value in kwargs.items():
-            if key in DEFAULT_CONFIG:
+            if key in DEFAULT_CONFIG or key == "protocol":
                 if key == "api_key" and value:
                     current[key] = _encrypt_value(str(value))
                 else:
@@ -302,41 +200,143 @@ class LlmConfigManager:
         return self.get_config(decrypt=True)
 
     def is_configured(self) -> bool:
-        """
-        检查是否已配置有效的API信息。
-
-        Returns:
-            bool: 是否已配置api_key和provider
-        """
         config = self.get_config(decrypt=True)
         return bool(config.get("api_key") and config.get("provider"))
 
     def get_resolved_config(self) -> Dict[str, Any]:
-        """
-        获取解析后的完整配置（填充默认值）。
-
-        根据provider自动填充默认的base_url和model。
-
-        Returns:
-            Dict[str, Any]: 解析后的配置字典
-        """
         config = self.get_config(decrypt=True)
         provider = config.get("provider", "openai")
-        provider_info = PROVIDERS.get(provider, PROVIDERS["openai"])
+        provider_info = PROVIDERS.get(provider, {})
 
         if not config.get("base_url"):
-            config["base_url"] = provider_info["default_base_url"]
+            config["base_url"] = provider_info.get("default_base_url", "")
 
         if not config.get("model"):
-            config["model"] = provider_info["default_model"]
+            config["model"] = provider_info.get("default_model", "")
 
         return config
 
     def get_providers(self) -> Dict[str, Any]:
-        """
-        获取所有支持的提供商信息。
-
-        Returns:
-            Dict[str, Any]: 提供商信息字典
-        """
         return PROVIDERS
+
+    def get_saved_provider_configs(self) -> List[Dict[str, Any]]:
+        if not PROVIDERS_FILE.exists():
+            return []
+
+        try:
+            with open(PROVIDERS_FILE, "r", encoding="utf-8") as f:
+                configs = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return []
+
+        for cfg in configs:
+            if cfg.get("api_key"):
+                key = _decrypt_value(cfg["api_key"])
+                if key:
+                    cfg["api_key_masked"] = _mask_key(key)
+                cfg.pop("api_key", None)
+
+        return configs
+
+    def save_provider_config(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        configs = []
+        if PROVIDERS_FILE.exists():
+            try:
+                with open(PROVIDERS_FILE, "r", encoding="utf-8") as f:
+                    configs = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                configs = []
+
+        existing = next((c for c in configs if c.get("name") == name), None)
+
+        save_data = {
+            "name": name,
+            "provider": config.get("provider", "custom"),
+            "protocol": config.get("protocol", "openai"),
+            "base_url": config.get("base_url", ""),
+            "model": config.get("model", ""),
+            "temperature": config.get("temperature", 0.3),
+            "max_tokens": config.get("max_tokens", 1024),
+            "timeout": config.get("timeout", 60),
+        }
+
+        if config.get("api_key"):
+            save_data["api_key"] = _encrypt_value(config["api_key"])
+
+        if existing:
+            if not config.get("api_key") and existing.get("api_key"):
+                save_data["api_key"] = existing["api_key"]
+            configs = [c for c in configs if c.get("name") != name]
+            configs.append(save_data)
+        else:
+            configs.append(save_data)
+
+        with open(PROVIDERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(configs, f, ensure_ascii=False, indent=2)
+
+        try:
+            os.chmod(PROVIDERS_FILE, 0o600)
+        except OSError:
+            pass
+
+        result = {**save_data}
+        if result.get("api_key"):
+            key = _decrypt_value(result["api_key"])
+            result["api_key_masked"] = _mask_key(key) if key else "****"
+            result.pop("api_key", None)
+
+        return result
+
+    def load_provider_config(self, name: str) -> Optional[Dict[str, Any]]:
+        if not PROVIDERS_FILE.exists():
+            return None
+
+        try:
+            with open(PROVIDERS_FILE, "r", encoding="utf-8") as f:
+                configs = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return None
+
+        cfg = next((c for c in configs if c.get("name") == name), None)
+        if not cfg:
+            return None
+
+        result = {**cfg}
+        if result.get("api_key"):
+            key = _decrypt_value(result["api_key"])
+            result["api_key"] = key
+            result["api_key_masked"] = _mask_key(key) if key else "****"
+            result["has_api_key"] = bool(key)
+        else:
+            result["has_api_key"] = False
+
+        return result
+
+    def delete_provider_config(self, name: str) -> bool:
+        if not PROVIDERS_FILE.exists():
+            return False
+
+        try:
+            with open(PROVIDERS_FILE, "r", encoding="utf-8") as f:
+                configs = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return False
+
+        original_len = len(configs)
+        configs = [c for c in configs if c.get("name") != name]
+
+        if len(configs) == original_len:
+            return False
+
+        with open(PROVIDERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(configs, f, ensure_ascii=False, indent=2)
+
+        return True
+
+
+def _mask_key(key: str) -> str:
+    if not key:
+        return "(空)"
+    if len(key) <= 8:
+        return "****"
+    return f"{key[:4]}{'*' * (len(key) - 8)}{key[-4:]}"

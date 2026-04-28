@@ -1,8 +1,8 @@
 {
   "provider": "openrouter",
-  "api_key": "gAAAAABp8E-isJBgQfn3KV1BW_3VGuWy5LAeYLI3Ps3fKMTxChB7Bh33jB7SZHSRMyjycMf0giawVUKYZ3u5xs4AAhCPG42CQBI7vFODLUW2pJTjjxr_b2OB3pjoKPD-THZjgtxeHHdCkh5Y_ov6kWhjtMFeEztYORqmyYB5Uyal6VMTNvBr8tU=",
+  "api_key": "gAAAAABp8GBN-3zBeQfue80-HRa1s9RwI6spMHD8nEHnzHzZmOFe4RHf7zlzTklaeKafEeBR7U7rxL00ux0Y01rIAH3unZ8XVs31DHk8zn_3mZFzcmOdqWWfd7cW4LrpM_9lpLCSJSJ38xndJmo1SFEWnn11GT4ptDoe6dWDwD84Ihh3ReH6E-U=",
   "base_url": "https://openrouter.ai/api/v1",
-  "model": "minimax/minimax-m2.5:free",
+  "model": "qwen/qwen3-32b:free",
   "temperature": 0.3,
   "max_tokens": 1024,
   "timeout": 60
