@@ -12,11 +12,7 @@
     <div v-if="activeTab === 'users'" class="section">
       <div class="filter-bar">
         <input v-model="userKeyword" type="text" class="filter-input" placeholder="搜索用户名/昵称/邮箱" @keyup.enter="searchUsers" />
-        <select v-model="userStatusFilter" class="filter-select" @change="searchUsers">
-          <option :value="null">全部状态</option>
-          <option :value="1">正常</option>
-          <option :value="0">已禁用</option>
-        </select>
+        <CustomSelect v-model="userStatusFilter" :options="userStatusOptions" placeholder="全部状态" class="filter-select" @change="searchUsers" />
         <button class="btn-search" @click="searchUsers">搜索</button>
       </div>
 
@@ -60,11 +56,7 @@
     <div v-if="activeTab === 'logs'" class="section">
       <div class="filter-bar">
         <input v-model="logKeyword" type="text" class="filter-input" placeholder="搜索操作人" @keyup.enter="fetchLogs" />
-        <select v-model="logActionFilter" class="filter-select" @change="fetchLogs">
-          <option value="">全部操作</option>
-          <option value="update_user">编辑用户</option>
-          <option value="disable_user">禁用用户</option>
-        </select>
+        <CustomSelect v-model="logActionFilter" :options="logActionOptions" placeholder="全部操作" class="filter-select" @change="fetchLogs" />
         <button class="btn-search" @click="fetchLogs">搜索</button>
       </div>
 
@@ -120,17 +112,11 @@
           </div>
           <div class="edit-field">
             <label>角色</label>
-            <select v-model="editForm.is_admin" class="edit-input">
-              <option :value="0">普通用户</option>
-              <option :value="1">管理员</option>
-            </select>
+            <CustomSelect v-model="editForm.is_admin" :options="roleOptions" class="edit-select" />
           </div>
           <div class="edit-field">
             <label>状态</label>
-            <select v-model="editForm.status" class="edit-input">
-              <option :value="1">正常</option>
-              <option :value="0">禁用</option>
-            </select>
+            <CustomSelect v-model="editForm.status" :options="statusOptions" class="edit-select" />
           </div>
           <div class="edit-field">
             <label>重置密码</label>
@@ -156,11 +142,7 @@
           <input type="date" v-model="billStartDate" class="filter-input-sm" />
           <span class="filter-sep">至</span>
           <input type="date" v-model="billEndDate" class="filter-input-sm" />
-          <select v-model="billTypeFilter" class="filter-select-sm">
-            <option :value="null">全部</option>
-            <option :value="1">支出</option>
-            <option :value="2">收入</option>
-          </select>
+          <CustomSelect v-model="billTypeFilter" :options="billTypeOptions" class="filter-select-sm compact" />
           <button class="btn-search-sm" @click="fetchUserBills">筛选</button>
           <button class="btn-export" @click="exportUserBills">导出</button>
         </div>
@@ -203,11 +185,40 @@ import { ref, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import AvatarUploader from '@/components/AvatarUploader.vue'
+import CustomSelect from '@/components/CustomSelect.vue'
 
 const authStore = useAuthStore()
 const currentUserId = computed(() => authStore.userId)
 
 const activeTab = ref('users')
+
+const userStatusOptions = [
+  { label: '全部状态', value: null },
+  { label: '正常', value: 1 },
+  { label: '已禁用', value: 0 },
+]
+
+const logActionOptions = [
+  { label: '全部操作', value: '' },
+  { label: '编辑用户', value: 'update_user' },
+  { label: '禁用用户', value: 'disable_user' },
+]
+
+const roleOptions = [
+  { label: '普通用户', value: 0 },
+  { label: '管理员', value: 1 },
+]
+
+const statusOptions = [
+  { label: '正常', value: 1 },
+  { label: '禁用', value: 0 },
+]
+
+const billTypeOptions = [
+  { label: '全部', value: null },
+  { label: '支出', value: 1 },
+  { label: '收入', value: 2 },
+]
 
 const userKeyword = ref('')
 const userStatusFilter = ref(null)
@@ -475,14 +486,8 @@ onMounted(() => {
 .filter-input:focus { border-color: var(--accent); }
 
 .filter-select {
-  padding: 8px 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--text-primary);
-  background: var(--bg-input);
-  outline: none;
-  cursor: pointer;
+  width: 140px;
+  flex-shrink: 0;
 }
 
 .btn-search {

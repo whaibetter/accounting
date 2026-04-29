@@ -153,30 +153,61 @@ export const llmApi = {
     const url = `${baseUrl}/llm/test/stream?token=${encodeURIComponent(token)}`
 
     return new Promise((resolve, reject) => {
-      const evtSource = new EventSource(url)
-
-      evtSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          onEvent(data)
-          if (data.phase === 'completed' || data.phase === 'error') {
-            evtSource.close()
-            resolve(data)
-          }
-        } catch (e) {
-          console.error('SSE parse error:', e)
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+        },
+      })
+      .then(response => {
+        if (!response.ok) {
+          reject(new Error(`HTTP ${response.status}: ${response.statusText}`))
+          return
         }
-      }
 
-      evtSource.onerror = () => {
-        evtSource.close()
-        reject(new Error('SSE连接失败，请检查网络或刷新页面重试'))
-      }
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
 
-      setTimeout(() => {
-        evtSource.close()
-        reject(new Error('SSE连接超时'))
-      }, 120000)
+        function readStream() {
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              resolve({ phase: 'completed', success: true, message: '测试完成' })
+              return
+            }
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6))
+                  onEvent(data)
+                  if (data.phase === 'completed' || data.phase === 'error') {
+                    reader.cancel()
+                    resolve(data)
+                    return
+                  }
+                } catch (e) {
+                  console.error('SSE parse error:', e)
+                }
+              }
+            }
+
+            readStream()
+          }).catch(e => {
+            reject(new Error('读取流失败: ' + e.message))
+          })
+        }
+
+        readStream()
+      })
+      .catch(e => {
+        reject(new Error('SSE连接失败: ' + e.message))
+      })
     })
   },
   parse(text) {

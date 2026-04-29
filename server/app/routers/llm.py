@@ -159,16 +159,16 @@ async def test_connection():
 
 @stream_router.get("/test/stream", summary="流式测试API连接(实时进度)")
 async def test_connection_stream(token: Optional[str] = None):
-    if token:
-        user_id = verify_token(token)
-        if not user_id:
-            return StreamingResponse(
-                iter([f"data: {json.dumps({'phase': 'error', 'message': '认证失败，请重新登录'}, ensure_ascii=False)}\n\n"]),
-                media_type="text/event-stream",
-            )
-    else:
+    if not token:
         return StreamingResponse(
             iter([f"data: {json.dumps({'phase': 'error', 'message': '缺少认证令牌'}, ensure_ascii=False)}\n\n"]),
+            media_type="text/event-stream",
+        )
+
+    user_id = verify_token(token)
+    if not user_id:
+        return StreamingResponse(
+            iter([f"data: {json.dumps({'phase': 'error', 'message': '认证失败，请重新登录'}, ensure_ascii=False)}\n\n"]),
             media_type="text/event-stream",
         )
 

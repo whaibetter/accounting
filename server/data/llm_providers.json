@@ -1,0 +1,24 @@
+[
+  {
+    "name": "OpenRouter",
+    "provider": "openrouter",
+    "protocol": "openai",
+    "base_url": "https://openrouter.ai/api/v1",
+    "model": "minimax/minimax-m2.5:free",
+    "temperature": 0.3,
+    "max_tokens": 1024,
+    "timeout": 60,
+    "api_key": "gAAAAABp8cC_N1eq81CT5v9_0nSTMdTwr7C8T8jlsBarcD5C9iuQGmfcukDoIXw5XpCGFk78O-n14HfeeuINpLbKAYzfS42wpfNtR1PUD7P-lRvD2ul1O0rAnaSRx86jQdNrgzACFA2G9RkdGVTKGV9NRpWGpRq9ARztSe-wypvj6YaYSCCgAI0="
+  },
+  {
+    "name": "NVIDIA NIM",
+    "provider": "nvidia",
+    "protocol": "openai",
+    "base_url": "https://integrate.api.nvidia.com/v1",
+    "model": "deepseek-ai/deepseek-v4-flash",
+    "temperature": 0.6,
+    "max_tokens": 16384,
+    "timeout": 120,
+    "api_key": "gAAAAABp8cC_e7ZFasu0ZQkrmMufJhwpMwVBLYdxSt2aRuXhWq7gmbu7ymTo0jncTk07Zza2Jsk-WbxbqcaWnPEEghIcl6i6S8WGJFOiNwaQ59_2BWClffxbgTtCT6uwUelxACEaoXJ8yfV5ZqXCI_fnk0BKD4MuQCNb8Jj7MbBMz41PJBmyTgU="
+  }
+]
