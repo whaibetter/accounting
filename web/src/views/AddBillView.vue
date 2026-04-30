@@ -110,6 +110,7 @@ import { useRouter } from 'vue-router'
 import { billApi, type Category } from '@/api/types'
 import { useDataStore } from '@/stores/data'
 import { getCategoryIcon, getTagIcon } from '@/utils/format'
+import { toastError } from '@/utils/toast'
 
 const router = useRouter()
 const store = useDataStore()
@@ -178,7 +179,7 @@ async function submit() {
     await store.refreshAccounts()
     router.push('/')
   } catch (e: any) {
-    alert(e.message || '保存失败')
+    toastError(e.message || '保存失败')
   }
 }
 

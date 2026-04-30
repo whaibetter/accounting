@@ -59,6 +59,7 @@
 <script setup>
 import { ref } from 'vue'
 import { importApi } from '@/services'
+import { toastWarning, toastError } from '@/utils/toast'
 
 const jsonInput = ref('')
 const accountJsonInput = ref('')
@@ -67,7 +68,7 @@ const result = ref(null)
 
 async function importBills() {
   if (!jsonInput.value.trim()) {
-    alert('请输入JSON数据')
+    toastWarning('请输入JSON数据')
     return
   }
   importing.value = true
@@ -78,9 +79,9 @@ async function importBills() {
     result.value = res.data.data
   } catch (e) {
     if (e instanceof SyntaxError) {
-      alert('JSON格式错误，请检查输入')
+      toastError('JSON格式错误，请检查输入')
     } else {
-      alert(e.response?.data?.detail || '导入失败')
+      toastError(e.response?.data?.detail || '导入失败')
     }
   } finally {
     importing.value = false
@@ -89,7 +90,7 @@ async function importBills() {
 
 async function importAccounts() {
   if (!accountJsonInput.value.trim()) {
-    alert('请输入JSON数据')
+    toastWarning('请输入JSON数据')
     return
   }
   importing.value = true
@@ -99,9 +100,9 @@ async function importAccounts() {
     result.value = res.data.data
   } catch (e) {
     if (e instanceof SyntaxError) {
-      alert('JSON格式错误，请检查输入')
+      toastError('JSON格式错误，请检查输入')
     } else {
-      alert(e.response?.data?.detail || '导入失败')
+      toastError(e.response?.data?.detail || '导入失败')
     }
   } finally {
     importing.value = false

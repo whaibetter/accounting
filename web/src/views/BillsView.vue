@@ -67,7 +67,7 @@
       @close="showMonthPicker = false"
     />
 
-    <div v-if="editingBill" class="modal-overlay" @click.self="editingBill = null">
+    <div v-if="editingBill" class="modal-overlay" v-modal-overlay="() => editingBill = null">
       <div class="edit-modal">
         <div class="edit-header">
           <span class="close-btn" @click="editingBill = null">✕</span>
@@ -128,6 +128,8 @@ import dayjs from 'dayjs'
 import MonthPicker from '@/components/MonthPicker.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import CustomSelect from '@/components/CustomSelect.vue'
+import { toastError } from '@/utils/toast'
+import { vModalOverlay } from '@/directives/modalOverlay'
 
 const billStore = useBillStore()
 const categoryStore = useCategoryStore()
@@ -251,7 +253,7 @@ async function saveBill() {
     editingBill.value = null
     fetchBills()
   } catch (e) {
-    alert(e.response?.data?.detail || '保存失败')
+    toastError(e.response?.data?.detail || '保存失败')
   }
 }
 
@@ -264,7 +266,7 @@ async function handleDeleteBill() {
     editingBill.value = null
     fetchBills()
   } catch (e) {
-    alert(e.response?.data?.detail || '删除失败')
+    toastError(e.response?.data?.detail || '删除失败')
   }
 }
 

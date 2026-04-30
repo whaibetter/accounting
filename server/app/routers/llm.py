@@ -301,10 +301,44 @@ async def test_connection_stream(token: Optional[str] = None):
 
 
 @router.post("/parse", summary="解析自然语言为记账数据")
-async def parse_text(req: dict):
+async def parse_text(req: dict, user_id: int = Depends(require_auth)):
     text = req.get("text", "")
     service = LlmService()
     result = await service.parse_text(text)
+
+    try:
+        from app.audit_service import log_operation
+        from app.auth import get_user_by_id
+        profile = get_user_by_id(user_id)
+        username = profile.get("username", "") if profile else ""
+        extra = {}
+        if result.get("request"):
+            extra["request"] = result["request"]
+        if result.get("response"):
+            r = result["response"]
+            extra["response"] = {
+                "status_code": r.get("status_code"),
+                "body": (r.get("body", "") or "")[:500],
+            }
+        if result.get("timing"):
+            extra["timing"] = result["timing"]
+        if result.get("bills"):
+            extra["bills_count"] = len(result["bills"])
+        log_operation(
+            operator_id=user_id,
+            operator_name=username,
+            action="ai_parse",
+            target_type="llm",
+            detail=f"AI解析: {text[:100]}{'...' if len(text) > 100 else ''}",
+            method="POST",
+            path="/api/v1/llm/parse",
+            status="success" if result.get("success") else "failure",
+            duration_ms=result.get("timing", {}).get("total_elapsed_ms"),
+            extra_data=extra if extra else None,
+        )
+    except Exception:
+        pass
+
     return {"code": 200, "message": "解析完成", "data": result}
 
 
@@ -345,6 +379,31 @@ async def parse_and_import(req: dict, db: Session = Depends(get_db), user_id: in
                 import_result["errors"].append(f"导入失败: {str(e)}")
     else:
         import_result["errors"].append(parse_result.get("error", "解析失败"))
+
+    try:
+        from app.audit_service import log_operation
+        from app.auth import get_user_by_id
+        profile = get_user_by_id(user_id)
+        username = profile.get("username", "") if profile else ""
+        log_operation(
+            operator_id=user_id,
+            operator_name=username,
+            action="ai_import",
+            target_type="llm",
+            detail=f"AI解析并导入: {text[:100]}{'...' if len(text) > 100 else ''}, 成功{import_result['success']}条",
+            method="POST",
+            path="/api/v1/llm/parse-import",
+            status="success" if import_result["success"] > 0 else "failure",
+            duration_ms=parse_result.get("timing", {}).get("total_elapsed_ms"),
+            extra_data={
+                "bills_count": len(parse_result.get("bills", [])),
+                "import_success": import_result["success"],
+                "import_errors": import_result["errors"],
+                "timing": parse_result.get("timing"),
+            },
+        )
+    except Exception:
+        pass
 
     return {
         "code": 200,

@@ -65,13 +65,19 @@ function selectOption(option) {
 const vClickOutside = {
   mounted(el, binding) {
     el._clickOutside = (e) => {
+      if (e.target === document.documentElement || e.target === document.body) return
       if (!el.contains(e.target)) {
         binding.value()
       }
     }
+    el._mouseDownOutside = (e) => {
+      el._mouseDownWasOutside = !el.contains(e.target)
+    }
+    document.addEventListener('mousedown', el._mouseDownOutside, true)
     document.addEventListener('click', el._clickOutside)
   },
   unmounted(el) {
+    document.removeEventListener('mousedown', el._mouseDownOutside, true)
     document.removeEventListener('click', el._clickOutside)
   },
 }

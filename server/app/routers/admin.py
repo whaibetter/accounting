@@ -1,3 +1,5 @@
+import io
+import json
 import logging
 from datetime import date, datetime
 from typing import Optional
@@ -5,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.auth import update_user_profile, get_user_by_id, _hash_password
 from app.database import SessionLocal
@@ -174,23 +176,57 @@ def list_operation_logs(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     action: Optional[str] = Query(None, description="操作类型筛选"),
+    target_type: Optional[str] = Query(None, description="操作对象类型筛选"),
     operator_name: Optional[str] = Query(None, description="操作人筛选"),
+    status: Optional[str] = Query(None, description="状态筛选 success/failure"),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    keyword: Optional[str] = Query(None, description="关键词搜索(详情/路径)"),
     admin_id: int = Depends(require_admin),
 ):
     db = SessionLocal()
     try:
         query = db.query(OperationLog)
         if action:
-            query = query.filter(OperationLog.action == action)
+            actions = [a.strip() for a in action.split(",")]
+            if len(actions) == 1:
+                query = query.filter(OperationLog.action == actions[0])
+            else:
+                query = query.filter(OperationLog.action.in_(actions))
+        if target_type:
+            query = query.filter(OperationLog.target_type == target_type)
         if operator_name:
             query = query.filter(OperationLog.operator_name.contains(operator_name))
+        if status:
+            query = query.filter(OperationLog.status == status)
+        if start_date:
+            try:
+                sd = datetime.strptime(start_date, "%Y-%m-%d")
+                query = query.filter(OperationLog.created_at >= sd)
+            except ValueError:
+                pass
+        if end_date:
+            try:
+                ed = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+                query = query.filter(OperationLog.created_at <= ed)
+            except ValueError:
+                pass
+        if keyword:
+            kw = f"%{keyword}%"
+            query = query.filter(
+                or_(
+                    OperationLog.detail.like(kw),
+                    OperationLog.path.like(kw),
+                    OperationLog.action.like(kw),
+                )
+            )
 
         total = query.count()
         logs = query.order_by(OperationLog.id.desc()).offset((page - 1) * size).limit(size).all()
 
         items = []
         for log in logs:
-            items.append({
+            item = {
                 "id": log.id,
                 "operator_id": log.operator_id,
                 "operator_name": log.operator_name,
@@ -199,8 +235,18 @@ def list_operation_logs(
                 "target_id": log.target_id,
                 "detail": log.detail,
                 "ip_address": log.ip_address,
+                "method": log.method,
+                "path": log.path,
+                "status": log.status,
+                "duration_ms": log.duration_ms,
                 "created_at": log.created_at.isoformat() if log.created_at else None,
-            })
+            }
+            if log.extra_data:
+                try:
+                    item["extra_data"] = json.loads(log.extra_data)
+                except (json.JSONDecodeError, TypeError):
+                    item["extra_data"] = log.extra_data
+            items.append(item)
 
         return {
             "code": 200,
@@ -210,6 +256,111 @@ def list_operation_logs(
                 "total": total,
                 "page": page,
                 "size": size,
+            },
+        }
+    finally:
+        db.close()
+
+
+@router.get("/logs/export", summary="导出操作日志")
+def export_operation_logs(
+    action: Optional[str] = Query(None, description="操作类型筛选"),
+    target_type: Optional[str] = Query(None, description="操作对象类型筛选"),
+    operator_name: Optional[str] = Query(None, description="操作人筛选"),
+    status: Optional[str] = Query(None, description="状态筛选"),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    keyword: Optional[str] = Query(None, description="关键词搜索"),
+    admin_id: int = Depends(require_admin),
+):
+    from openpyxl import Workbook
+
+    db = SessionLocal()
+    try:
+        query = db.query(OperationLog)
+        if action:
+            actions = [a.strip() for a in action.split(",")]
+            if len(actions) == 1:
+                query = query.filter(OperationLog.action == actions[0])
+            else:
+                query = query.filter(OperationLog.action.in_(actions))
+        if target_type:
+            query = query.filter(OperationLog.target_type == target_type)
+        if operator_name:
+            query = query.filter(OperationLog.operator_name.contains(operator_name))
+        if status:
+            query = query.filter(OperationLog.status == status)
+        if start_date:
+            try:
+                sd = datetime.strptime(start_date, "%Y-%m-%d")
+                query = query.filter(OperationLog.created_at >= sd)
+            except ValueError:
+                pass
+        if end_date:
+            try:
+                ed = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+                query = query.filter(OperationLog.created_at <= ed)
+            except ValueError:
+                pass
+        if keyword:
+            kw = f"%{keyword}%"
+            query = query.filter(
+                or_(
+                    OperationLog.detail.like(kw),
+                    OperationLog.path.like(kw),
+                    OperationLog.action.like(kw),
+                )
+            )
+
+        logs = query.order_by(OperationLog.id.desc()).limit(10000).all()
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "操作日志"
+        ws.append(["ID", "操作人ID", "操作人", "操作类型", "操作对象", "对象ID", "详情", "IP地址", "方法", "路径", "状态", "耗时(ms)", "时间"])
+
+        for log in logs:
+            ws.append([
+                log.id,
+                log.operator_id,
+                log.operator_name,
+                log.action,
+                log.target_type,
+                log.target_id,
+                log.detail,
+                log.ip_address,
+                log.method,
+                log.path,
+                log.status,
+                log.duration_ms,
+                log.created_at.strftime("%Y-%m-%d %H:%M:%S") if log.created_at else "",
+            ])
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        return StreamingResponse(
+            output,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": "attachment; filename=operation_logs.xlsx"},
+        )
+    finally:
+        db.close()
+
+
+@router.get("/logs/actions", summary="获取所有操作类型列表")
+def get_log_actions(admin_id: int = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        actions = db.query(OperationLog.action).distinct().all()
+        target_types = db.query(OperationLog.target_type).distinct().all()
+        return {
+            "code": 200,
+            "message": "success",
+            "data": {
+                "actions": sorted([a[0] for a in actions if a[0]]),
+                "target_types": sorted([t[0] for t in target_types if t[0]]),
             },
         }
     finally:

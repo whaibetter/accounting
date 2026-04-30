@@ -8,7 +8,7 @@
     "temperature": 0.3,
     "max_tokens": 1024,
     "timeout": 60,
-    "api_key": "gAAAAABp8cC_N1eq81CT5v9_0nSTMdTwr7C8T8jlsBarcD5C9iuQGmfcukDoIXw5XpCGFk78O-n14HfeeuINpLbKAYzfS42wpfNtR1PUD7P-lRvD2ul1O0rAnaSRx86jQdNrgzACFA2G9RkdGVTKGV9NRpWGpRq9ARztSe-wypvj6YaYSCCgAI0="
+    "api_key": "gAAAAABp8qsGmmjJlni9Nhhc7cbxzq8-xsayRwb7nmrfKHV3t5r-AXrT8DW27VRUGBEvsaU85pQwrwqRXJBRGUYOxl5SwQBe109rwAfbju_ewwswM2sgNo_odPbP6XTHS-fLzf0Jwv50dMxIhxuBiom1hf221hymKfRf2gmGySQfuxgdgcC1jQc="
   },
   {
     "name": "NVIDIA NIM",
@@ -19,6 +19,17 @@
     "temperature": 0.6,
     "max_tokens": 16384,
     "timeout": 120,
-    "api_key": "gAAAAABp8cC_e7ZFasu0ZQkrmMufJhwpMwVBLYdxSt2aRuXhWq7gmbu7ymTo0jncTk07Zza2Jsk-WbxbqcaWnPEEghIcl6i6S8WGJFOiNwaQ59_2BWClffxbgTtCT6uwUelxACEaoXJ8yfV5ZqXCI_fnk0BKD4MuQCNb8Jj7MbBMz41PJBmyTgU="
+    "api_key": "gAAAAABp8qsGgApGlbBqLQDhE466KvOqsI6FSRm4diYsUJnZLDKESUGQUjsjAy4O4-CFxvlHi3cv6g6bMkXO5JlpOTCn6xqJyveIKtUY2kYtryVAwDLeB0qln-oZU8emzBnM5HzsOt76rYAFfZJ5BI_4-Ih3V-ZAnmGs2afLXXGPIbePHgCLAGQ="
+  },
+  {
+    "name": "小米MiMo",
+    "provider": "xiaomi",
+    "protocol": "openai",
+    "base_url": "https://api.xiaomimimo.com/v1",
+    "model": "mimo-v2.5-pro",
+    "temperature": 1.0,
+    "max_tokens": 1024,
+    "timeout": 60,
+    "api_key": "gAAAAABp8qsGN4S-plmvkV4h-KSomw76Ie_yMCjpOF9AUpYAZvZsHbKf4jgRuuADuwpdMRMTAx564CiIIRGuGbhBs_o-f7rls89Fzk6JaTqshP3h3u1mp-xt4ccFNmEHVN-pcb0PgmS2YrLkIOHRhHVxcoHZgJ3zHg=="
   }
 ]

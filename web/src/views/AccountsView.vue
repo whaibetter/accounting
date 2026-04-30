@@ -46,7 +46,7 @@
       </div>
     </div>
 
-    <div v-if="showAddForm || editingAccount" class="modal-overlay" @click.self="closeForm">
+    <div v-if="showAddForm || editingAccount" class="modal-overlay" v-modal-overlay="closeForm">
       <div class="form-modal">
         <div class="form-header">
           <span class="close-btn" @click="closeForm">✕</span>
@@ -101,6 +101,8 @@ import { formatMoney, getAccountTypeName, getAccountTypeColor, getAccountIcon } 
 import CustomSelect from '@/components/CustomSelect.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import { toastWarning, toastError } from '@/utils/toast'
+import { vModalOverlay } from '@/directives/modalOverlay'
 
 const accountStore = useAccountStore()
 const confirmDialog = ref(null)
@@ -142,7 +144,7 @@ function closeForm() {
 
 async function saveAccount() {
   if (!form.value.name) {
-    alert('请输入账户名称')
+    toastWarning('请输入账户名称')
     return
   }
   try {
@@ -158,7 +160,7 @@ async function saveAccount() {
     closeForm()
     accountStore.fetchAccounts()
   } catch (e) {
-    alert(e.response?.data?.detail || '保存失败')
+    toastError(e.response?.data?.detail || '保存失败')
   }
 }
 
@@ -169,7 +171,7 @@ async function handleDeleteAccount(acc) {
     await accountStore.deleteAccount(acc.id)
     accountStore.fetchAccounts()
   } catch (e) {
-    alert(e.response?.data?.detail || '删除失败')
+    toastError(e.response?.data?.detail || '删除失败')
   }
 }
 

@@ -40,6 +40,7 @@
 import { ref } from 'vue'
 import { exportApi } from '@/services'
 import dayjs from 'dayjs'
+import { toastError } from '@/utils/toast'
 
 const startDate = ref(dayjs().startOf('month').format('YYYY-MM-DD'))
 const endDate = ref(dayjs().endOf('month').format('YYYY-MM-DD'))
@@ -63,7 +64,7 @@ async function exportExcel() {
     })
     downloadBlob(res.data, `accounting_${startDate.value}_${endDate.value}.xlsx`)
   } catch (e) {
-    alert('导出失败')
+    toastError('导出失败')
   } finally {
     exporting.value = false
   }
@@ -78,7 +79,7 @@ async function exportJson() {
     })
     downloadBlob(res.data, `accounting_${startDate.value}_${endDate.value}.json`)
   } catch (e) {
-    alert('导出失败')
+    toastError('导出失败')
   } finally {
     exporting.value = false
   }

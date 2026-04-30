@@ -2,7 +2,6 @@ import logging
 import re
 import time
 from collections import defaultdict
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -11,6 +10,11 @@ logger = logging.getLogger("accounting")
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _SCRIPT_PATTERN = re.compile(r"<\s*script", re.IGNORECASE)
+
+SKIP_LOG_PATHS = {
+    "/health", "/docs", "/redoc", "/openapi.json",
+    "/favicon.ico",
+}
 
 
 class RateLimiter:
@@ -54,11 +58,50 @@ async def audit_middleware(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
     duration = (time.time() - start) * 1000
+
+    path = request.url.path
+    method = request.method
+    status_code = response.status_code
+    client_ip = request.client.host if request.client else "unknown"
+
     logger.info(
-        f"{request.method} {request.url.path} "
-        f"{response.status_code} {duration:.1f}ms "
-        f"ip={request.client.host if request.client else 'unknown'}"
+        f"{method} {path} "
+        f"{status_code} {duration:.1f}ms "
+        f"ip={client_ip}"
     )
+
+    if path not in SKIP_LOG_PATHS and path.startswith("/api/"):
+        try:
+            from app.audit_service import log_from_request
+            from app.auth import verify_token, get_user_by_id
+
+            user_id = 0
+            username = ""
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                uid_str = verify_token(token, "access")
+                if uid_str:
+                    try:
+                        user_id = int(uid_str)
+                        profile = get_user_by_id(user_id)
+                        if profile:
+                            username = profile.get("username", "")
+                    except (ValueError, TypeError):
+                        pass
+
+            log_from_request(
+                method=method,
+                path=path,
+                status_code=status_code,
+                duration_ms=duration,
+                user_id=user_id,
+                username=username,
+                ip_address=client_ip,
+            )
+        except Exception as e:
+            logger.error(f"审计日志记录异常: {e}")
+
     return response
 
 

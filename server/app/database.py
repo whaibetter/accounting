@@ -122,6 +122,30 @@ def _migrate_db():
             except Exception:
                 pass
 
+    if 'operation_log' in insp.get_table_names():
+        log_columns = [col['name'] for col in insp.get_columns('operation_log')]
+        new_cols = {
+            'method': "VARCHAR(10) DEFAULT ''",
+            'path': "VARCHAR(200) DEFAULT ''",
+            'status': "VARCHAR(20) DEFAULT 'success'",
+            'duration_ms': "INTEGER",
+            'extra_data': "TEXT",
+        }
+        for col_name, col_def in new_cols.items():
+            if col_name not in log_columns:
+                with engine.connect() as conn:
+                    conn.execute(text(f"ALTER TABLE operation_log ADD COLUMN {col_name} {col_def}"))
+                    conn.commit()
+                logger.info(f"已为operation_log表添加{col_name}列")
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_operation_log_operator_id ON operation_log(operator_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_operation_log_action ON operation_log(action)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_operation_log_created_at ON operation_log(created_at)"))
+                conn.commit()
+            except Exception:
+                pass
+
 
 def _assign_orphan_data_to_admin(db):
     from app.models import User, Account, Category, Tag

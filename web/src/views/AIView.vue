@@ -167,15 +167,108 @@
     <div v-if="parseResult" class="card">
       <div class="section-title">解析结果</div>
       <div v-if="parseResult.bills && parseResult.bills.length">
-        <div v-for="(bill, idx) in parseResult.bills" :key="idx" class="parsed-bill">
-          <span class="parsed-type">{{ bill.type === 2 ? '收入' : '支出' }}</span>
-          <span class="parsed-category">{{ bill.category || '其他' }}</span>
-          <span class="parsed-amount">¥{{ bill.amount }}</span>
-          <span class="parsed-remark">{{ bill.remark || '' }}</span>
+        <div class="parse-summary">
+          <span class="summary-tag" :class="parseResult.bills.length > 0 ? 'success' : 'warning'">
+            共 {{ parseResult.bills.length }} 条账单
+          </span>
+          <span v-if="parseTiming" class="summary-tag timing">耗时 {{ parseTiming.total_elapsed_ms }}ms</span>
+        </div>
+        <div class="bills-list">
+          <div v-for="(bill, idx) in parseResult.bills" :key="idx" class="parsed-bill">
+            <div class="bill-header">
+              <span class="bill-type" :class="bill.type === 2 ? 'income' : 'expense'">
+                {{ bill.type === 2 ? '↑ 收入' : '↓ 支出' }}
+              </span>
+              <span class="bill-category">{{ bill.category || '其他' }}</span>
+              <span class="bill-amount" :class="bill.type === 2 ? 'income' : 'expense'">
+                {{ bill.type === 2 ? '+' : '-' }}¥{{ parseFloat(bill.amount).toFixed(2) }}
+              </span>
+            </div>
+            <div class="bill-details">
+              <span v-if="bill.date" class="bill-detail-item">
+                <span class="detail-icon">📅</span>{{ bill.date }}
+              </span>
+              <span v-if="bill.time" class="bill-detail-item">
+                <span class="detail-icon">🕐</span>{{ bill.time }}
+              </span>
+              <span v-if="bill.counterparty" class="bill-detail-item">
+                <span class="detail-icon">👤</span>{{ bill.counterparty }}
+              </span>
+              <span v-if="bill.payment_method" class="bill-detail-item">
+                <span class="detail-icon">💳</span>{{ bill.payment_method }}
+              </span>
+              <span v-if="bill.remark" class="bill-detail-item bill-remark">
+                <span class="detail-icon">📝</span>{{ bill.remark }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div v-if="parseRequest || parseResponse || parseRawResponse" class="debug-section">
+          <div class="debug-toggle" @click="parseExpanded.request = !parseExpanded.request">
+            <span class="toggle-arrow" :class="{ open: parseExpanded.request }">▶</span>
+            <span>请求信息</span>
+            <span v-if="parseTiming" class="toggle-sub">({{ parseTiming.total_elapsed_ms }}ms)</span>
+          </div>
+          <div v-show="parseExpanded.request" class="debug-content">
+            <div class="detail-item" v-if="parseRequest">
+              <span class="detail-label">URL</span>
+              <code class="detail-value">{{ parseRequest.url }}</code>
+            </div>
+            <div class="detail-item" v-if="parseRequest">
+              <span class="detail-label">请求头</span>
+              <pre class="detail-pre">{{ formatJson(parseRequest.headers) }}</pre>
+            </div>
+            <div class="detail-item" v-if="parseRequest">
+              <span class="detail-label">请求体</span>
+              <pre class="detail-pre">{{ formatJson(parseRequest.body) }}</pre>
+            </div>
+          </div>
+
+          <div class="debug-toggle" @click="parseExpanded.response = !parseExpanded.response">
+            <span class="toggle-arrow" :class="{ open: parseExpanded.response }">▶</span>
+            <span>响应信息</span>
+          </div>
+          <div v-show="parseExpanded.response" class="debug-content">
+            <div class="detail-item" v-if="parseResponse">
+              <span class="detail-label">状态码</span>
+              <code class="detail-value" :class="parseResponse.status_code >= 200 && parseResponse.status_code < 300 ? 'status-ok' : 'status-err'">
+                {{ parseResponse.status_code || 'N/A' }}
+              </code>
+            </div>
+            <div class="detail-item" v-if="parseResponse">
+              <span class="detail-label">响应头</span>
+              <pre class="detail-pre">{{ formatJson(parseResponse.headers) }}</pre>
+            </div>
+            <div class="detail-item" v-if="parseResponse">
+              <span class="detail-label">响应体</span>
+              <pre class="detail-pre">{{ formatBody(parseResponse.body) }}</pre>
+            </div>
+            <div class="detail-item" v-if="parseResponse?.error">
+              <span class="detail-label">错误信息</span>
+              <code class="detail-value status-err">{{ parseResponse.error }}</code>
+            </div>
+          </div>
+
+          <div class="debug-toggle" @click="parseExpanded.raw = !parseExpanded.raw">
+            <span class="toggle-arrow" :class="{ open: parseExpanded.raw }">▶</span>
+            <span>原始响应</span>
+          </div>
+          <div v-show="parseExpanded.raw" class="debug-content">
+            <pre class="detail-pre" style="max-height: 400px">{{ parseRawResponse || '(无)' }}</pre>
+          </div>
         </div>
       </div>
       <div v-else class="empty-state" style="padding: 20px">
         <div class="text">{{ parseResult.error || '未能解析出有效数据' }}</div>
+        <div v-if="parseRawResponse" class="error-raw">
+          <div class="debug-toggle" @click="parseExpanded.raw = !parseExpanded.raw">
+            <span class="toggle-arrow" :class="{ open: parseExpanded.raw }">▶</span>
+            <span>查看原始响应</span>
+          </div>
+          <div v-show="parseExpanded.raw">
+            <pre class="detail-pre" style="max-height: 300px">{{ parseRawResponse }}</pre>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -190,7 +283,7 @@
       </div>
     </div>
 
-    <div v-if="showConfigForm" class="modal-overlay" @click.self="closeConfigForm">
+    <div v-if="showConfigForm" class="modal-overlay" v-modal-overlay="closeConfigForm">
       <div class="form-modal">
         <div class="form-header">
           <span class="close-btn" @click="closeConfigForm">✕</span>
@@ -301,16 +394,21 @@
       </div>
     </div>
   </div>
+  <ConfirmDialog ref="confirmRef" icon="🗑️" />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { llmApi } from '@/services'
 import CustomSelect from '@/components/CustomSelect.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
+import { toastSuccess, toastError } from '@/utils/toast'
+import { vModalOverlay } from '@/directives/modalOverlay'
 
 const authStore = useAuthStore()
 const isAdmin = computed(() => !!authStore.user?.is_admin)
+const confirmRef = ref(null)
 
 const protocolOptions = [
   { label: 'OpenAI 兼容格式', value: 'openai' },
@@ -338,6 +436,11 @@ const testing = ref(false)
 const testResult = ref(null)
 const parseResult = ref(null)
 const importResult = ref(null)
+const parseRequest = ref(null)
+const parseResponse = ref(null)
+const parseTiming = ref(null)
+const parseRawResponse = ref(null)
+const parseExpanded = ref({ request: false, response: false, raw: false, bills: true })
 const expandedSections = ref({ request: true, response: true })
 const presetName = ref('')
 const savedProviders = ref([])
@@ -463,17 +566,22 @@ async function loadSavedProvider(name) {
     }
     testResult.value = null
   } catch (e) {
-    alert(e.response?.data?.detail || '加载配置失败')
+    toastError(e.response?.data?.detail || '加载配置失败')
   }
 }
 
 async function deleteSavedProvider(name) {
-  if (!confirm(`确定删除配置 "${name}" 吗？`)) return
+  const ok = await confirmRef.value.show({
+    title: '删除配置',
+    description: `确定删除配置 "${name}" 吗？`,
+    confirmText: '确认删除',
+  })
+  if (!ok) return
   try {
     await llmApi.deleteProviderConfig(name)
     fetchSavedProviders()
   } catch (e) {
-    alert('删除失败')
+    toastError('删除失败')
   }
 }
 
@@ -493,9 +601,9 @@ async function saveAsPreset() {
     })
     presetName.value = ''
     fetchSavedProviders()
-    alert('预设配置保存成功')
+    toastSuccess('预设配置保存成功')
   } catch (e) {
-    alert('保存失败')
+    toastError('保存失败')
   }
 }
 
@@ -510,9 +618,9 @@ async function saveConfig() {
     showConfigForm.value = false
     testResult.value = null
     fetchConfig()
-    alert('配置保存成功')
+    toastSuccess('配置保存成功')
   } catch (e) {
-    alert(e.response?.data?.detail || '保存失败')
+    toastError(e.response?.data?.detail || '保存失败')
   }
 }
 
@@ -597,11 +705,27 @@ async function parseText() {
   parsing.value = true
   parseResult.value = null
   importResult.value = null
+  parseRequest.value = null
+  parseResponse.value = null
+  parseTiming.value = null
+  parseRawResponse.value = null
+  parseExpanded.value = { request: false, response: false, raw: false, bills: true }
   try {
     const res = await llmApi.parse(inputText.value)
-    parseResult.value = res.data.data
+    const data = res.data.data
+    parseResult.value = data
+    parseRequest.value = data.request || null
+    parseResponse.value = data.response || null
+    parseTiming.value = data.timing || null
+    parseRawResponse.value = data.raw_response || null
   } catch (e) {
-    alert(e.response?.data?.detail || '解析失败')
+    const errData = e.response?.data?.detail
+    if (typeof errData === 'object' && errData) {
+      parseRequest.value = errData.request || null
+      parseResponse.value = errData.response || null
+      parseRawResponse.value = errData.raw_response || null
+    }
+    toastError(errData?.error || e.response?.data?.detail || '解析失败')
   } finally {
     parsing.value = false
   }
@@ -618,7 +742,7 @@ async function parseAndImport() {
     parseResult.value = data.parse_result
     importResult.value = data.import_result
   } catch (e) {
-    alert(e.response?.data?.detail || '操作失败')
+    toastError(e.response?.data?.detail || '操作失败')
   } finally {
     parsing.value = false
   }
@@ -729,4 +853,40 @@ onMounted(fetchConfig)
 .detail-value.status-ok { color: var(--success); background: rgba(76, 175, 80, 0.1); }
 .detail-value.status-err { color: var(--danger); background: rgba(244, 67, 54, 0.1); }
 .detail-pre { margin: 0; padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; background: rgba(0, 0, 0, 0.04); color: var(--text-primary); overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; }
+
+.parse-summary { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.summary-tag { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.summary-tag.success { background: rgba(76, 175, 80, 0.15); color: var(--success); }
+.summary-tag.warning { background: rgba(255, 152, 0, 0.15); color: var(--warning); }
+.summary-tag.timing { background: rgba(33, 150, 243, 0.1); color: var(--accent); }
+
+.bills-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.parsed-bill { padding: 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.02); border: 1px solid var(--border); }
+.bill-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.bill-type { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.bill-type.income { color: var(--success); background: rgba(76, 175, 80, 0.12); }
+.bill-type.expense { color: var(--danger); background: rgba(244, 67, 54, 0.12); }
+.bill-category { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.bill-amount { font-size: 14px; font-weight: 700; }
+.bill-amount.income { color: var(--success); }
+.bill-amount.expense { color: var(--danger); }
+.bill-details { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.bill-detail-item { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+.detail-icon { font-size: 14px; }
+.bill-remark { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.debug-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; }
+.debug-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; user-select: none; border-radius: 6px; transition: background 0.15s; }
+.debug-toggle:hover { background: rgba(0, 0, 0, 0.03); }
+.toggle-arrow { font-size: 10px; transition: transform 0.2s; }
+.toggle-arrow.open { transform: rotate(90deg); }
+.toggle-sub { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-left: 4px; }
+.debug-content { padding: 0 12px 8px; }
+.error-raw { margin-top: 12px; }
+
+@media (max-width: 480px) {
+  .bill-header { gap: 6px; }
+  .bill-amount { font-size: 13px; }
+  .bill-detail-item { font-size: 11px; }
+}
 </style>

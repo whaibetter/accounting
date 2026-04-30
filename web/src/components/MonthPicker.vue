@@ -1,5 +1,5 @@
 <template>
-  <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
+  <div v-if="visible" class="modal-overlay" v-modal-overlay="() => $emit('close')">
     <div class="month-picker-modal">
       <div class="picker-header">
         <span class="picker-title">选择月份</span>
@@ -46,6 +46,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import dayjs from 'dayjs'
+import { vModalOverlay } from '@/directives/modalOverlay'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },

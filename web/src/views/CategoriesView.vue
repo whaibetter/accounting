@@ -46,7 +46,7 @@
       </div>
     </div>
 
-    <div v-if="showForm" class="modal-overlay" @click.self="closeForm">
+    <div v-if="showForm" class="modal-overlay" v-modal-overlay="closeForm">
       <div class="form-modal">
         <div class="form-header">
           <span class="close-btn" @click="closeForm">✕</span>
@@ -150,6 +150,8 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 import { getCategoryIcon } from '@/utils/format'
 import { categoryApi } from '@/services'
+import { toastWarning, toastError } from '@/utils/toast'
+import { vModalOverlay } from '@/directives/modalOverlay'
 
 const categoryStore = useCategoryStore()
 const confirmDialog = ref(null)
@@ -221,7 +223,7 @@ function closeForm() {
 
 async function saveCategory() {
   if (!form.value.name) {
-    alert('请输入分类名称')
+    toastWarning('请输入分类名称')
     return
   }
   try {
@@ -242,7 +244,7 @@ async function saveCategory() {
     closeForm()
     categoryStore.fetchCategories(currentType.value)
   } catch (e) {
-    alert(e.response?.data?.detail || '保存失败')
+    toastError(e.response?.data?.detail || '保存失败')
   }
 }
 
@@ -264,7 +266,7 @@ async function handleDeleteCategory(cat) {
     await categoryStore.deleteCategory(cat.id)
     categoryStore.fetchCategories(currentType.value)
   } catch (e) {
-    alert(e.response?.data?.detail || '删除失败')
+    toastError(e.response?.data?.detail || '删除失败')
   }
 }
 
@@ -283,7 +285,7 @@ async function doCascadeDelete() {
     await categoryApi.delete(cat.id, true)
     categoryStore.fetchCategories(currentType.value)
   } catch (e) {
-    alert(e.response?.data?.detail || '删除失败')
+    toastError(e.response?.data?.detail || '删除失败')
   }
 }
 
@@ -309,7 +311,7 @@ async function doTransferAndDelete() {
     showTransferDialog.value = false
     categoryStore.fetchCategories(currentType.value)
   } catch (e) {
-    alert(e.response?.data?.detail || '操作失败')
+    toastError(e.response?.data?.detail || '操作失败')
   }
 }
 

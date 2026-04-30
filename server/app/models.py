@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, Date, Time, ForeignKey, UniqueConstraint
+    Column, Integer, String, Float, DateTime, Date, Time, ForeignKey, UniqueConstraint, Text
 )
 from sqlalchemy.orm import relationship
 
@@ -129,13 +129,18 @@ class OperationLog(Base):
     __tablename__ = "operation_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    operator_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    operator_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
     operator_name = Column(String(50), nullable=False)
-    action = Column(String(50), nullable=False)
+    action = Column(String(50), nullable=False, index=True)
     target_type = Column(String(50), default="")
     target_id = Column(Integer, default=None)
     detail = Column(String(500), default="")
     ip_address = Column(String(50), default="")
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    method = Column(String(10), default="")
+    path = Column(String(200), default="")
+    status = Column(String(20), default="success")
+    duration_ms = Column(Integer, default=None)
+    extra_data = Column(Text, default=None)
+    created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
 
     operator = relationship("User")

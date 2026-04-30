@@ -1,9 +1,9 @@
 {
-  "provider": "openrouter",
-  "api_key": "gAAAAABp8cQd3meZVmRDeUnfrIL_xD7AhDcJoeIlxh1ZZTWMfQhAIEpXWiL_JYfS6Qm3_jDPYJCNP9Cbvvau9zUDZZVRJ14AxXS0G2F9KwdEASUXWNN5dOQzcyXwP97mpFWte6tAfCLx1uQG1OC1W5UCjXMProJPj8LNhmj_xxLDF3L9Ybi0Ig4=",
-  "base_url": "https://openrouter.ai/api/v1",
-  "model": "qwen/qwen3-32b:free",
-  "temperature": 0.3,
+  "provider": "xiaomi",
+  "api_key": "gAAAAABp8sIHOZ2rbawz1GcssozTio2I6a_gbhhxjoMz2lTcEvkqqzWq56O0Q363l0MsyxuKBeyvbYpYyy-N0pwfJlC_H0sXbWTA9eShGgrSE-gf18kVTu2KNZyF-sQmX--ySbu-Y-mMuE6hEskND0H4x_C3zLL3FQ==",
+  "base_url": "https://token-plan-sgp.xiaomimimo.com/v1",
+  "model": "mimo-v2.5",
+  "temperature": 1.0,
   "max_tokens": 1024,
   "timeout": 60,
   "protocol": "openai"

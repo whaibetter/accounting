@@ -1,13 +1,13 @@
 <template>
   <Transition name="confirm-fade">
-    <div v-if="visible" class="confirm-overlay" @click="handleCancel">
+    <div v-if="visible" class="confirm-overlay" v-modal-overlay="handleCancel">
       <div class="confirm-dialog" @click.stop>
-        <div class="confirm-icon">{{ icon }}</div>
-        <div class="confirm-title">{{ title }}</div>
-        <div class="confirm-desc" v-if="description">{{ description }}</div>
+        <div class="confirm-icon">{{ currentIcon }}</div>
+        <div class="confirm-title">{{ currentTitle }}</div>
+        <div class="confirm-desc" v-if="currentDesc">{{ currentDesc }}</div>
         <div class="confirm-actions">
           <button class="confirm-btn cancel" @click="handleCancel">取消</button>
-          <button class="confirm-btn danger" @click="handleConfirm">{{ confirmText }}</button>
+          <button class="confirm-btn danger" @click="handleConfirm">{{ currentConfirmText }}</button>
         </div>
       </div>
     </div>
@@ -16,6 +16,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { vModalOverlay } from '@/directives/modalOverlay'
 
 const props = defineProps({
   icon: { type: String, default: '⚠️' },
@@ -25,9 +26,24 @@ const props = defineProps({
 })
 
 const visible = ref(false)
+const currentIcon = ref(props.icon)
+const currentTitle = ref(props.title)
+const currentDesc = ref(props.description)
+const currentConfirmText = ref(props.confirmText)
 let resolveFn = null
 
-function show() {
+function show(opts) {
+  if (opts) {
+    currentIcon.value = opts.icon || props.icon
+    currentTitle.value = opts.title || props.title
+    currentDesc.value = opts.description ?? props.description
+    currentConfirmText.value = opts.confirmText || props.confirmText
+  } else {
+    currentIcon.value = props.icon
+    currentTitle.value = props.title
+    currentDesc.value = props.description
+    currentConfirmText.value = props.confirmText
+  }
   visible.value = true
   return new Promise((resolve) => {
     resolveFn = resolve

@@ -80,28 +80,30 @@ SYSTEM_PROMPT = """你是一个专业的记账助手。你的任务是将用户�
   {
     "type": 1,
     "amount": 35.0,
-    "category": "咖啡",
+    "category": "餐饮",
     "date": "2026-04-22",
-    "time": null,
-    "remark": "买咖啡",
-    "account": null,
-    "payment_method": null
+    "time": "12:30",
+    "remark": "午餐买咖啡",
+    "counterparty": "星巴克",
+    "payment_method": "微信支付",
+    "account": null
   }
 ]
 ```
 
 ## 字段说明
 - type: 账单类型，1=支出，2=收入
-- amount: 金额，正数，单位为元
-- category: 分类名称，必须是以下预设分类之一
-- date: 日期，格式YYYY-MM-DD
-- time: 时间，格式HH:MM，可为null
-- remark: 备注描述
-- account: 账户名称，可为null（使用默认账户）
-- payment_method: 支付方式，可为null
+- amount: 金额，正数，单位为元，保留两位小数
+- category: 分类名称，必须从预设分类中选择最匹配的一个
+- date: 交易日期，格式YYYY-MM-DD，根据用户描述智能推断
+- time: 交易时间，格式HH:MM，如果用户描述中包含时间信息则提取，否则为null
+- remark: 交易备注，简洁描述交易内容
+- counterparty: 交易对方，如商家名称、收款人等，如果无法推断则为null
+- payment_method: 支付方式，如微信支付、支付宝、银行卡、现金等，如果无法推断则为null
+- account: 账户名称，如果用户指定了记账账户则填写，否则为null
 
 ## 预设支出分类
-餐饮（早餐、午餐、晚餐、零食、饮料）、交通（公交、地铁、打车、加油、停车）、购物（日用品、衣物、数码、美妆）、居住（房租、水电、物业、网费）、娱乐（电影、游戏、旅行、运动）、医疗（门诊、药品、体检）、教育（书籍、课程、培训）、通讯（话费、会员）、人情（红包、礼物、请客）、其他
+餐饮（早餐、午餐、晚餐、零食、饮料、咖啡）、交通（公交、地铁、打车、加油、停车、机票）、购物（日用品、衣物、数码、美妆）、居住（房租、水电、物业、网费）、娱乐（电影、游戏、旅行、运动）、医疗（门诊、药品、体检）、教育（书籍、课程、培训）、通讯（话费、会员）、人情（红包、礼物、请客）、其他
 
 ## 预设收入分类
 工资、兼职、理财、红包、退款、其他
@@ -115,28 +117,30 @@ SYSTEM_PROMPT = """你是一个专业的记账助手。你的任务是将用户�
    - "X号/X日" → 当月X日
    - "X月X日" → 对应日期
    - 无日期信息 → 当前日期
-3. 时间提取：识别"早上X点"、"下午X点"、"晚上X点"、"X点"等时间表达
+3. 时间提取：识别"早上X点"、"下午X点"、"晚上X点"、"X点X分"等时间表达，转换为24小时制HH:MM格式
 4. 分类推断：根据消费内容自动推断最匹配的分类
 5. 类型判断：默认为支出，出现"收入"、"收到"、"工资"等关键词时为收入
-6. 多笔账单：如果用户描述了多笔消费，分别输出
+6. 交易对方：从商家名称、收款人等信息中提取
+7. 支付方式：识别"微信"、"支付宝"、"刷卡"、"现金"等支付方式描述
+8. 多笔账单：如果用户描述了多笔消费，分别输出
 
 ## 示例
-输入："今天买咖啡花了35元"
+输入："今天中午12点半在星巴克买咖啡花了35元，用微信支付"
 输出：
 ```json
-[{"type":1,"amount":35.0,"category":"饮料","date":"2026-04-22","time":null,"remark":"买咖啡","account":null,"payment_method":null}]
+[{"type":1,"amount":35.0,"category":"饮料","date":"2026-04-22","time":"12:30","remark":"买咖啡","counterparty":"星巴克","payment_method":"微信支付","account":null}]
 ```
 
 输入："昨天午饭28块，打车回家15"
 输出：
 ```json
-[{"type":1,"amount":28.0,"category":"午餐","date":"2026-04-21","time":null,"remark":"午饭","account":null,"payment_method":null},{"type":1,"amount":15.0,"category":"打车","date":"2026-04-21","time":null,"remark":"打车回家","account":null,"payment_method":null}]
+[{"type":1,"amount":28.0,"category":"午餐","date":"2026-04-21","time":null,"remark":"午饭","counterparty":null,"payment_method":null,"account":null},{"type":1,"amount":15.0,"category":"打车","date":"2026-04-21","time":null,"remark":"打车回家","counterparty":null,"payment_method":null,"account":null}]
 ```
 
 输入："3月工资到账15000"
 输出：
 ```json
-[{"type":2,"amount":15000.0,"category":"工资","date":"2026-03-01","time":null,"remark":"3月工资","account":null,"payment_method":null}]
+[{"type":2,"amount":15000.0,"category":"工资","date":"2026-03-01","time":null,"remark":"3月工资","counterparty":null,"payment_method":null,"account":null}]
 ```
 
 重要：只输出JSON数据，不要输出任何其他文字说明。"""
@@ -471,9 +475,14 @@ class LlmService:
 
         try:
             if protocol == "anthropic":
-                raw_response = await self._call_anthropic(config, user_message)
+                result = await self._call_anthropic_with_debug(config, user_message)
             else:
-                raw_response = await self._call_openai(config, user_message)
+                result = await self._call_openai_with_debug(config, user_message)
+
+            raw_response = result.get("content", "")
+            request_info = result.get("request")
+            response_info = result.get("response")
+            timing_info = result.get("timing")
 
             logger.info(f"[智能记账] 原始响应: {raw_response[:500]}{'...' if len(raw_response) > 500 else ''}")
 
@@ -486,6 +495,9 @@ class LlmService:
                     "bills": [],
                     "raw_response": raw_response,
                     "error": "未能从AI响应中解析出有效的记账数据",
+                    "request": request_info,
+                    "response": response_info,
+                    "timing": timing_info,
                 }
 
             for bill in bills:
@@ -497,19 +509,29 @@ class LlmService:
                 "success": True,
                 "bills": bills,
                 "raw_response": raw_response,
+                "request": request_info,
+                "response": response_info,
+                "timing": timing_info,
             }
 
         except httpx.ConnectError as e:
             logger.error(f"[智能记账] 连接错误: {e}")
-            return {"success": False, "bills": [], "error": "无法连接到API服务器"}
+            return {"success": False, "bills": [], "error": "无法连接到API服务器",
+                    "response": {"error": str(e), "error_type": "ConnectError"}}
         except httpx.TimeoutException as e:
             logger.error(f"[智能记账] 请求超时: {e}")
-            return {"success": False, "bills": [], "error": "API请求超时"}
+            return {"success": False, "bills": [], "error": "API请求超时",
+                    "response": {"error": str(e), "error_type": "TimeoutException"}}
         except Exception as e:
             logger.error(f"[智能记账] 解析失败: {e}", exc_info=True)
-            return {"success": False, "bills": [], "error": f"解析失败: {str(e)}"}
+            return {"success": False, "bills": [], "error": f"解析失败: {str(e)}",
+                    "response": {"error": str(e), "error_type": type(e).__name__}}
 
     async def _call_openai(self, config: Dict[str, Any], user_message: str) -> str:
+        result = await self._call_openai_with_debug(config, user_message)
+        return result.get("content", "")
+
+    async def _call_openai_with_debug(self, config: Dict[str, Any], user_message: str) -> Dict[str, Any]:
         base_url = config.get("base_url", "https://api.openai.com/v1").rstrip("/")
         url = f"{base_url}/chat/completions"
         provider = config.get("provider", "openai")
@@ -538,6 +560,18 @@ class LlmService:
             "max_tokens": config.get("max_tokens", 1024),
         }
 
+        safe_headers = {
+            "Authorization": f"Bearer {_mask_api_key(config.get('api_key', ''))}",
+            "Content-Type": "application/json",
+        }
+
+        request_info = {
+            "url": url,
+            "method": "POST",
+            "headers": safe_headers,
+            "body": full_payload,
+        }
+
         _log_request(url, "POST", full_payload, headers, provider)
         start_time = time.time()
 
@@ -545,6 +579,13 @@ class LlmService:
             async with self._get_client() as client:
                 resp = await client.post(url, json=full_payload, headers=headers)
                 elapsed_ms = (time.time() - start_time) * 1000
+
+                response_info = {
+                    "status_code": resp.status_code,
+                    "headers": dict(resp.headers),
+                    "body": resp.text[:2000],
+                    "elapsed_ms": round(elapsed_ms),
+                }
 
                 if resp.status_code != 200:
                     _log_response(resp.status_code, resp.text, elapsed_ms, success=False)
@@ -555,7 +596,13 @@ class LlmService:
                 data = resp.json()
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                 logger.info(f"[LLM 解析结果] 内容长度: {len(content)} 字符")
-                return content
+
+                return {
+                    "content": content,
+                    "request": request_info,
+                    "response": response_info,
+                    "timing": {"total_elapsed_ms": round(elapsed_ms)},
+                }
 
         except Exception as e:
             elapsed_ms = (time.time() - start_time) * 1000
@@ -563,6 +610,10 @@ class LlmService:
             raise
 
     async def _call_anthropic(self, config: Dict[str, Any], user_message: str) -> str:
+        result = await self._call_anthropic_with_debug(config, user_message)
+        return result.get("content", "")
+
+    async def _call_anthropic_with_debug(self, config: Dict[str, Any], user_message: str) -> Dict[str, Any]:
         base_url = config.get("base_url", "https://api.anthropic.com").rstrip("/")
         url = f"{base_url}/v1/messages"
         provider = config.get("provider", "anthropic")
@@ -588,6 +639,19 @@ class LlmService:
             "max_tokens": config.get("max_tokens", 1024),
         }
 
+        safe_headers = {
+            "x-api-key": _mask_api_key(config.get("api_key", "")),
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+
+        request_info = {
+            "url": url,
+            "method": "POST",
+            "headers": safe_headers,
+            "body": full_payload,
+        }
+
         _log_request(url, "POST", full_payload, headers, provider)
         start_time = time.time()
 
@@ -595,6 +659,13 @@ class LlmService:
             async with self._get_client() as client:
                 resp = await client.post(url, json=full_payload, headers=headers)
                 elapsed_ms = (time.time() - start_time) * 1000
+
+                response_info = {
+                    "status_code": resp.status_code,
+                    "headers": dict(resp.headers),
+                    "body": resp.text[:2000],
+                    "elapsed_ms": round(elapsed_ms),
+                }
 
                 if resp.status_code != 200:
                     _log_response(resp.status_code, resp.text, elapsed_ms, success=False)
@@ -608,7 +679,13 @@ class LlmService:
                     block.get("text", "") for block in content_blocks if block.get("type") == "text"
                 )
                 logger.info(f"[LLM 解析结果] 内容长度: {len(content)} 字符")
-                return content
+
+                return {
+                    "content": content,
+                    "request": request_info,
+                    "response": response_info,
+                    "timing": {"total_elapsed_ms": round(elapsed_ms)},
+                }
 
         except Exception as e:
             elapsed_ms = (time.time() - start_time) * 1000
@@ -704,6 +781,9 @@ class LlmService:
 
         if "payment_method" not in bill:
             bill["payment_method"] = None
+
+        if "counterparty" not in bill:
+            bill["counterparty"] = None
 
     def _normalize_date(self, date_str: str) -> str:
         """

@@ -89,6 +89,7 @@ import { useBillStore, useAccountStore, useCategoryStore } from '@/stores/data'
 import CustomSelect from '@/components/CustomSelect.vue'
 import dayjs from 'dayjs'
 import { getCategoryIcon } from '@/utils/format'
+import { toastWarning, toastError } from '@/utils/toast'
 
 const router = useRouter()
 const billStore = useBillStore()
@@ -170,19 +171,19 @@ function goBack() {
 async function submitBill() {
   const amount = parseFloat(amountStr.value)
   if (!amount || amount <= 0) {
-    alert('请输入金额')
+    toastWarning('请输入金额')
     return
   }
   if (!selectedCategory.value && billType.value !== 3) {
-    alert('请选择分类')
+    toastWarning('请选择分类')
     return
   }
   if (!selectedAccountId.value) {
-    alert('请选择账户')
+    toastWarning('请选择账户')
     return
   }
   if (billType.value === 3 && !transferToAccountId.value) {
-    alert('请选择转入账户')
+    toastWarning('请选择转入账户')
     return
   }
 
@@ -203,7 +204,7 @@ async function submitBill() {
     await billStore.createBill(data)
     router.back()
   } catch (e) {
-    alert(e.response?.data?.detail || '创建失败')
+    toastError(e.response?.data?.detail || '创建失败')
   } finally {
     submitting.value = false
   }

@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <div v-if="showAddForm || editingTag" class="modal-overlay" @click.self="closeForm">
+    <div v-if="showAddForm || editingTag" class="modal-overlay" v-modal-overlay="closeForm">
       <div class="form-modal">
         <div class="form-header">
           <span class="close-btn" @click="closeForm">✕</span>
@@ -72,6 +72,8 @@ import { useTagStore } from '@/stores/data'
 import { getTagIcon } from '@/utils/format'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import { toastWarning, toastError } from '@/utils/toast'
+import { vModalOverlay } from '@/directives/modalOverlay'
 
 const tagStore = useTagStore()
 const confirmDialog = ref(null)
@@ -96,7 +98,7 @@ function closeForm() {
 
 async function saveTag() {
   if (!form.value.name) {
-    alert('请输入标签名称')
+    toastWarning('请输入标签名称')
     return
   }
   try {
@@ -108,7 +110,7 @@ async function saveTag() {
     closeForm()
     tagStore.fetchTags()
   } catch (e) {
-    alert(e.response?.data?.detail || '保存失败')
+    toastError(e.response?.data?.detail || '保存失败')
   }
 }
 
@@ -119,7 +121,7 @@ async function handleDeleteTag(tag) {
     await tagStore.deleteTag(tag.id)
     tagStore.fetchTags()
   } catch (e) {
-    alert(e.response?.data?.detail || '删除失败')
+    toastError(e.response?.data?.detail || '删除失败')
   }
 }
 
