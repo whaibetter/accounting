@@ -89,6 +89,17 @@ PROVIDERS = {
             "qwen/qwen2.5-72b-instruct",
         ],
     },
+    "xiaomi": {
+        "name": "小米MiMo",
+        "protocol": "openai",
+        "default_base_url": "https://api.xiaomimimo.com/v1",
+        "default_model": "mimo-v2.5-pro",
+        "models": [
+            "mimo-v2.5-pro",
+            "mimo-v2.5",
+            "mimo-v2",
+        ],
+    },
 }
 
 DEFAULT_API_KEY = "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"
@@ -199,6 +210,17 @@ class LlmConfigManager:
                 "max_tokens": 16384,
                 "timeout": 120,
                 "api_key": _encrypt_value("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"),
+            },
+            {
+                "name": "小米MiMo",
+                "provider": "xiaomi",
+                "protocol": "openai",
+                "base_url": "https://api.xiaomimimo.com/v1",
+                "model": "mimo-v2.5-pro",
+                "temperature": 1.0,
+                "max_tokens": 1024,
+                "timeout": 60,
+                "api_key": _encrypt_value("sk-swl7zp9bvo1yu1n5ojo7f96vleqxgbfa23umfznqiawn1siy"),
             },
         ]
 
