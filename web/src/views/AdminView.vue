@@ -181,7 +181,7 @@
         <div class="edit-body">
           <div class="edit-field">
             <label>头像</label>
-            <AvatarUploader :modelValue="editForm.avatar" :size="64" @uploaded="onEditAvatarUploaded" />
+            <AvatarUploader :modelValue="editForm.avatar" :size="64" :user-id="editingUser?.id" @uploaded="onEditAvatarUploaded" />
           </div>
           <div class="edit-field">
             <label>用户名</label>
@@ -674,7 +674,7 @@ onMounted(() => {
 
 <style scoped>
 .admin-page {
-  padding-bottom: 20px;
+  /* 继承全局 .page 的 padding-bottom，为底部导航栏预留空间 */
 }
 
 .page-header {
@@ -1235,7 +1235,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 200;
   padding: 16px;
 }
 

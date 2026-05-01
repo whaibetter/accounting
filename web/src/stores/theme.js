@@ -36,6 +36,13 @@ function shiftToDark(hex, factor) {
   return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`
 }
 
+function hexToAlphaRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 export const THEMES = {
   warmSun: {
     id: 'warmSun',
@@ -45,6 +52,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#FAF7F2',
       '--bg-card': '#ffffff',
+      '--bg-card-alpha': 'rgba(255, 255, 255, 0.92)',
       '--bg-input': '#f5f1ea',
       '--bg-tab': '#f0ebe3',
       '--text-primary': '#3d3325',
@@ -72,6 +80,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#1a1714',
       '--bg-card': '#252220',
+      '--bg-card-alpha': 'rgba(37, 34, 32, 0.92)',
       '--bg-input': '#2d2926',
       '--bg-tab': '#2a2623',
       '--text-primary': '#e8e0d4',
@@ -99,6 +108,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#f4fbff',
       '--bg-card': '#ffffff',
+      '--bg-card-alpha': 'rgba(255, 255, 255, 0.92)',
       '--bg-input': '#e8f2fa',
       '--bg-tab': '#e0ecf5',
       '--text-primary': '#253340',
@@ -126,6 +136,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#141a22',
       '--bg-card': '#1e2430',
+      '--bg-card-alpha': 'rgba(30, 36, 48, 0.92)',
       '--bg-input': '#252c38',
       '--bg-tab': '#222830',
       '--text-primary': '#d4e0ec',
@@ -153,6 +164,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#f4fff4',
       '--bg-card': '#ffffff',
+      '--bg-card-alpha': 'rgba(255, 255, 255, 0.92)',
       '--bg-input': '#e8f5e8',
       '--bg-tab': '#e0f5e0',
       '--text-primary': '#253325',
@@ -180,6 +192,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#141e14',
       '--bg-card': '#1e281e',
+      '--bg-card-alpha': 'rgba(30, 40, 30, 0.92)',
       '--bg-input': '#253025',
       '--bg-tab': '#222c22',
       '--text-primary': '#d4e8d4',
@@ -207,6 +220,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#f4f0ff',
       '--bg-card': '#ffffff',
+      '--bg-card-alpha': 'rgba(255, 255, 255, 0.92)',
       '--bg-input': '#ece6f8',
       '--bg-tab': '#ebe0f5',
       '--text-primary': '#302540',
@@ -234,6 +248,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#1a1422',
       '--bg-card': '#241e30',
+      '--bg-card-alpha': 'rgba(36, 30, 48, 0.92)',
       '--bg-input': '#2c2638',
       '--bg-tab': '#282230',
       '--text-primary': '#e0d4f0',
@@ -261,6 +276,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#fff4f4',
       '--bg-card': '#ffffff',
+      '--bg-card-alpha': 'rgba(255, 255, 255, 0.92)',
       '--bg-input': '#f5e0e0',
       '--bg-tab': '#f0d8d8',
       '--text-primary': '#402530',
@@ -288,6 +304,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#221418',
       '--bg-card': '#301e24',
+      '--bg-card-alpha': 'rgba(48, 30, 36, 0.92)',
       '--bg-input': '#38262c',
       '--bg-tab': '#302228',
       '--text-primary': '#f0d4dc',
@@ -315,6 +332,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#fffff4',
       '--bg-card': '#ffffff',
+      '--bg-card-alpha': 'rgba(255, 255, 255, 0.92)',
       '--bg-input': '#f5f5e0',
       '--bg-tab': '#f0f0d8',
       '--text-primary': '#3d3d25',
@@ -342,6 +360,7 @@ export const THEMES = {
     colors: {
       '--bg-primary': '#1a1a14',
       '--bg-card': '#26261e',
+      '--bg-card-alpha': 'rgba(38, 38, 30, 0.92)',
       '--bg-input': '#2e2e24',
       '--bg-tab': '#28281e',
       '--text-primary': '#e8e8d4',

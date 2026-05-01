@@ -3,10 +3,10 @@ import uuid
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 
-from app.auth import update_user_profile
+from app.auth import update_user_profile, get_user_by_id
 from app.dependencies import require_auth
 
 logger = logging.getLogger("avatar")
@@ -30,8 +30,16 @@ MIME_MAP = {
 @router.post("/upload", summary="上传头像")
 async def upload_avatar(
     file: UploadFile = File(...),
+    target_user_id: int = Form(None),
     user_id: int = Depends(require_auth),
 ):
+    # 管理员可以为其他用户上传头像
+    if target_user_id is not None and target_user_id != user_id:
+        profile = get_user_by_id(user_id)
+        if not profile or not profile.get("is_admin"):
+            raise HTTPException(status_code=403, detail="需要管理员权限")
+        user_id = target_user_id
+
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="仅支持 JPG、PNG、WebP 格式的图片")
 
@@ -66,7 +74,7 @@ async def upload_avatar(
 
 
 @router.get("/file/{filename}", summary="获取头像文件")
-def get_avatar_file(filename: str):
+async def get_avatar_file(filename: str):
     filepath = UPLOAD_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="头像文件不存在")

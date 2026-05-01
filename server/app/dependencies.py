@@ -14,13 +14,25 @@ PUBLIC_PATHS = {
     "/openapi.json",
 }
 
+# 头像文件路径模式（支持通配符匹配）
+PUBLIC_PATH_PATTERNS = [
+    "/api/v1/avatar/file/",
+]
+
 
 async def require_auth(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_security),
 ) -> int:
-    if request.url.path in PUBLIC_PATHS:
+    path = request.url.path
+
+    if path in PUBLIC_PATHS:
         return 0
+
+    # 检查路径模式
+    for pattern in PUBLIC_PATH_PATTERNS:
+        if path.startswith(pattern):
+            return 0
 
     if credentials is None:
         raise HTTPException(status_code=401, detail="未提供认证Token")

@@ -23,18 +23,19 @@
       </div>
       <span class="progress-text">{{ progress }}%</span>
     </div>
-    <div v-if="errorMsg" class="upload-error">{{ errorMsg }}</div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
 import api from '@/services/api'
+import { toastError, toastSuccess } from '@/utils/toast'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   size: { type: Number, default: 80 },
   editable: { type: Boolean, default: true },
+  userId: { type: Number, default: null },
 })
 
 const emit = defineEmits(['update:modelValue', 'uploaded'])
@@ -43,7 +44,6 @@ const fileInput = ref(null)
 const previewUrl = ref('')
 const uploading = ref(false)
 const progress = ref(0)
-const errorMsg = ref('')
 
 function resolveUrl(url) {
   if (!url) return ''
@@ -65,17 +65,15 @@ async function handleFileSelect(e) {
   const file = e.target.files?.[0]
   if (!file) return
 
-  errorMsg.value = ''
-
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
   if (!allowedTypes.includes(file.type)) {
-    errorMsg.value = '仅支持 JPG、PNG、WebP 格式'
+    toastError('仅支持 JPG、PNG、WebP 格式')
     fileInput.value.value = ''
     return
   }
 
   if (file.size > 2 * 1024 * 1024) {
-    errorMsg.value = '图片大小不能超过 2MB'
+    toastError('图片大小不能超过 2MB')
     fileInput.value.value = ''
     return
   }
@@ -92,6 +90,9 @@ async function handleFileSelect(e) {
   try {
     const formData = new FormData()
     formData.append('file', file)
+    if (props.userId) {
+      formData.append('target_user_id', props.userId)
+    }
 
     const res = await api.post('/avatar/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -108,7 +109,7 @@ async function handleFileSelect(e) {
     }
   } catch (err) {
     const detail = err.response?.data?.detail || err.message || '上传失败'
-    errorMsg.value = detail
+    toastError(detail)
     previewUrl.value = resolveUrl(props.modelValue)
   } finally {
     uploading.value = false
@@ -222,11 +223,5 @@ async function handleFileSelect(e) {
   white-space: nowrap;
   min-width: 32px;
   text-align: right;
-}
-
-.upload-error {
-  font-size: 12px;
-  color: var(--danger);
-  text-align: center;
 }
 </style>
