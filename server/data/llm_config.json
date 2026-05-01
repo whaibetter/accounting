@@ -1,6 +1,6 @@
 {
   "provider": "xiaomi",
-  "api_key": "gAAAAABp8sIHOZ2rbawz1GcssozTio2I6a_gbhhxjoMz2lTcEvkqqzWq56O0Q363l0MsyxuKBeyvbYpYyy-N0pwfJlC_H0sXbWTA9eShGgrSE-gf18kVTu2KNZyF-sQmX--ySbu-Y-mMuE6hEskND0H4x_C3zLL3FQ==",
+  "api_key": "gAAAAABp9D9O_rKLEyrF93iNJlG2RRYlLazGRTqkZxFH-xJ-rGfzGJe-Nqe5_pLbdAc-jhPXbuAaxlXnIFkD8-gqS5HIEW2G25P-GG7FNUN0R58VFtQoU7TqrYhBQMIzFDatMqhBWwJDFHF0MJssT0JZlCWbEYCFcA==",
   "base_url": "https://token-plan-sgp.xiaomimimo.com/v1",
   "model": "mimo-v2.5",
   "temperature": 1.0,

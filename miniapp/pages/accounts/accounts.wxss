@@ -1,0 +1,33 @@
+.page-con { padding: 24rpx; padding-bottom: 100rpx; }
+
+.account-card { padding: 28rpx; }
+.ac-header { display: flex; align-items: center; }
+.ac-icon { font-size: 36rpx; margin-right: 20rpx; }
+.ac-info { flex: 1; }
+.ac-name { font-size: 30rpx; font-weight: 500; display: block; margin-bottom: 4rpx; }
+.ac-balance { font-size: 34rpx; font-weight: 700; }
+
+.ac-actions { display: flex; gap: 16rpx; margin-top: 20rpx; padding-top: 16rpx; border-top: 1rpx solid var(--border-color); }
+.ac-btn { font-size: 24rpx; color: var(--color-primary); }
+.ac-btn.danger { color: var(--color-expense); }
+
+.add-btn { text-align: center; color: var(--color-primary); font-size: 30rpx; padding: 32rpx; }
+
+/* 弹层 */
+.modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 200; }
+.form-panel { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); border-radius: 32rpx 32rpx 0 0; padding: 40rpx 36rpx 60rpx; z-index: 201; max-height: 80vh; overflow-y: auto; }
+
+.form-title { font-size: 34rpx; font-weight: 600; display: block; margin-bottom: 32rpx; text-align: center; }
+.form-item { margin-bottom: 28rpx; }
+.form-label { font-size: 26rpx; color: var(--text-secondary); display: block; margin-bottom: 12rpx; }
+.form-input { width: 100%; height: 76rpx; background: var(--bg-input); border-radius: var(--radius-sm); padding: 0 24rpx; color: var(--text-primary); font-size: 28rpx; }
+.placeholder { color: var(--text-muted); }
+
+.form-types { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.ft-item { padding: 12rpx 28rpx; border-radius: 24rpx; background: var(--bg-input); color: var(--text-secondary); font-size: 26rpx; }
+.ft-item.active { background: var(--color-primary); color: #FFF; }
+
+.form-btns { display: flex; gap: 24rpx; margin-top: 32rpx; }
+.form-btn { flex: 1; text-align: center; padding: 24rpx 0; border-radius: var(--radius-md); font-size: 30rpx; }
+.form-btn.cancel { background: var(--bg-input); color: var(--text-secondary); }
+.form-btn.save { background: var(--color-primary); color: #FFF; }

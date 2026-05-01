@@ -11,6 +11,59 @@ from app.database import SessionLocal
 
 logger = logging.getLogger("auth")
 
+DEFAULT_EXPENSE_CATEGORIES = [
+    ("餐饮", "food", ["早餐", "午餐", "晚餐", "零食", "饮料"]),
+    ("交通", "transport", ["公交", "地铁", "打车", "加油", "停车"]),
+    ("购物", "shopping", ["日用品", "衣物", "数码", "美妆"]),
+    ("居住", "housing", ["房租", "水电", "物业", "网费"]),
+    ("娱乐", "entertainment", ["电影", "游戏", "旅行", "运动"]),
+    ("医疗", "medical", ["门诊", "药品", "体检"]),
+    ("教育", "education", ["书籍", "课程", "培训"]),
+    ("通讯", "telecom", ["话费", "会员"]),
+    ("人情", "social", ["红包", "礼物", "请客"]),
+    ("其他", "other_expense", []),
+]
+
+DEFAULT_INCOME_CATEGORIES = [
+    ("工资", "salary", []),
+    ("兼职", "parttime", []),
+    ("理财", "investment", []),
+    ("红包", "redpacket", []),
+    ("退款", "refund", []),
+    ("其他", "other_income", []),
+]
+
+
+def _seed_user_categories(db, user_id: int):
+    from app.models import Category
+    sort = 0
+    for name, icon, children in DEFAULT_EXPENSE_CATEGORIES:
+        parent = Category(user_id=user_id, name=name, type=1, icon=icon, sort_order=sort)
+        db.add(parent)
+        db.flush()
+        for child_name in children:
+            db.add(Category(user_id=user_id, name=child_name, type=1, parent_id=parent.id, sort_order=sort))
+        sort += 1
+    for name, icon, children in DEFAULT_INCOME_CATEGORIES:
+        parent = Category(user_id=user_id, name=name, type=2, icon=icon, sort_order=sort)
+        db.add(parent)
+        db.flush()
+        for child_name in children:
+            db.add(Category(user_id=user_id, name=child_name, type=2, parent_id=parent.id, sort_order=sort))
+        sort += 1
+    db.commit()
+
+
+def _seed_user_account(db, user_id: int):
+    from app.models import Account
+    default = Account(
+        user_id=user_id, name="现金", type=1, icon="cash",
+        color="#4CAF50", balance=0, initial_balance=0,
+        is_default=1, sort_order=0,
+    )
+    db.add(default)
+    db.commit()
+
 ALGORITHM = "HS256"
 ACCESS_EXPIRE_DAYS = 7
 
@@ -65,6 +118,7 @@ def _init_secret_key() -> None:
 def init_auth() -> None:
     _init_secret_key()
     _migrate_legacy_data()
+    _ensure_default_admin()
 
 
 def get_secret_key() -> str:
@@ -137,6 +191,45 @@ def _migrate_legacy_data() -> None:
         db.close()
 
 
+def _ensure_default_admin() -> None:
+    """确保至少存在一个管理员账户，并为没有分类的用户补充默认数据"""
+    db = SessionLocal()
+    try:
+        from app.models import User, Category, Account
+        admin_exists = db.query(User).filter(User.is_admin == 1).first()
+        if not admin_exists:
+            hashed = _hash_password("a6e823c5")
+            admin = User(
+                username="admin",
+                password_hash=hashed,
+                nickname="管理员",
+                is_admin=1,
+                status=1,
+            )
+            db.add(admin)
+            db.commit()
+            logger.info("已创建默认管理员账户: admin")
+
+        users_without_categories = db.query(User).filter(
+            ~User.id.in_(db.query(Category.user_id).distinct())
+        ).all()
+        for user in users_without_categories:
+            _seed_user_categories(db, user.id)
+            logger.info(f"已为用户 {user.username} 补充默认分类")
+
+        users_without_accounts = db.query(User).filter(
+            ~User.id.in_(db.query(Account.user_id).distinct())
+        ).all()
+        for user in users_without_accounts:
+            _seed_user_account(db, user.id)
+            logger.info(f"已为用户 {user.username} 补充默认账户")
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"初始化默认数据失败: {e}")
+    finally:
+        db.close()
+
+
 def check_username(username: str) -> tuple[bool, str]:
     if not username or len(username) < 3:
         return False, "用户名长度不能少于3位"
@@ -180,6 +273,8 @@ def register_user(username: str, password: str) -> tuple[Optional[int], str]:
         db.add(user)
         db.commit()
         db.refresh(user)
+        _seed_user_categories(db, user.id)
+        _seed_user_account(db, user.id)
         logger.info(f"新用户注册: {username}")
         return user.id, "注册成功"
     except Exception as e:

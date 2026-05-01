@@ -16,6 +16,12 @@
       >{{ t.label }}</button>
     </div>
 
+    <div class="ai-entry" @click="$router.push('/ai')">
+      <span class="ai-icon">🤖</span>
+      <span class="ai-text">AI 智能记账</span>
+      <span class="ai-arrow">›</span>
+    </div>
+
     <div class="amount-section">
       <span class="currency">¥</span>
       <input
@@ -208,6 +214,17 @@ onMounted(async () => {
 }
 .type-btn.active.expense { background: var(--expense-bg); color: var(--expense); border-color: var(--expense); }
 .type-btn.active.income { background: var(--income-bg); color: var(--income); border-color: var(--income); }
+
+.ai-entry {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(212, 165, 116, 0.12), rgba(212, 165, 116, 0.05));
+  border: 1px solid rgba(212, 165, 116, 0.25); border-radius: var(--radius);
+  cursor: pointer; margin-bottom: 20px; transition: all 0.2s;
+}
+.ai-entry:hover { background: linear-gradient(135deg, rgba(212, 165, 116, 0.2), rgba(212, 165, 116, 0.1)); border-color: var(--accent); }
+.ai-icon { font-size: 22px; }
+.ai-text { flex: 1; font-size: 15px; font-weight: 600; color: var(--accent); }
+.ai-arrow { font-size: 20px; color: var(--accent); opacity: 0.6; }
 
 .amount-section {
   display: flex; align-items: center; gap: 8px; margin-bottom: 28px;

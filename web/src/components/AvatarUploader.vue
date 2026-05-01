@@ -21,51 +21,43 @@
       <div class="progress-bar">
         <div class="progress-fill" :style="{ width: progress + '%' }"></div>
       </div>
-      <span class="progress-text">上传中...</span>
+      <span class="progress-text">{{ progress }}%</span>
     </div>
     <div v-if="errorMsg" class="upload-error">{{ errorMsg }}</div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { ref, watch, computed, onMounted } from 'vue'
 import api from '@/services/api'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   size: { type: Number, default: 80 },
-  editable: { type: Boolean, default: undefined },
+  editable: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['update:modelValue', 'uploaded'])
 
-const authStore = useAuthStore()
-
-const canEdit = computed(() => {
-  if (props.editable !== undefined) return props.editable
-  return !!authStore.user?.is_admin
-})
-
-const editable = canEdit
-
 const fileInput = ref(null)
-const previewUrl = ref(props.modelValue || '')
+const previewUrl = ref('')
 const uploading = ref(false)
 const progress = ref(0)
 const errorMsg = ref('')
 
+function resolveUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http') || url.startsWith('data:')) return url
+  const base = api.defaults?.baseURL ? api.defaults.baseURL.replace('/api/v1', '') : ''
+  return base + url
+}
+
 watch(() => props.modelValue, (val) => {
-  if (val && !val.startsWith('data:')) {
-    const base = api.defaults?.baseURL ? api.defaults.baseURL.replace('/api/v1', '') : ''
-    previewUrl.value = val.startsWith('http') ? val : base + val
-  } else {
-    previewUrl.value = val
-  }
-})
+  previewUrl.value = resolveUrl(val)
+}, { immediate: true })
 
 function triggerUpload() {
-  if (uploading.value || !editable.value) return
+  if (uploading.value || !props.editable) return
   fileInput.value.click()
 }
 
@@ -103,21 +95,21 @@ async function handleFileSelect(e) {
 
     const res = await api.post('/avatar/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (e) => {
-        if (e.total) progress.value = Math.round((e.loaded / e.total) * 100)
+      onUploadProgress: (ev) => {
+        if (ev.total) progress.value = Math.round((ev.loaded / ev.total) * 100)
       },
     })
 
     const data = res.data?.data || res.data
     if (data.avatar) {
-      const base = api.defaults?.baseURL ? api.defaults.baseURL.replace('/api/v1', '') : ''
-      previewUrl.value = data.avatar.startsWith('http') ? data.avatar : base + data.avatar
+      previewUrl.value = resolveUrl(data.avatar)
       emit('update:modelValue', data.avatar)
       emit('uploaded', data.avatar)
     }
   } catch (err) {
     const detail = err.response?.data?.detail || err.message || '上传失败'
     errorMsg.value = detail
+    previewUrl.value = resolveUrl(props.modelValue)
   } finally {
     uploading.value = false
     fileInput.value.value = ''
@@ -130,7 +122,7 @@ async function handleFileSelect(e) {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .avatar-preview {
@@ -228,6 +220,8 @@ async function handleFileSelect(e) {
   font-size: 12px;
   color: var(--text-secondary);
   white-space: nowrap;
+  min-width: 32px;
+  text-align: right;
 }
 
 .upload-error {

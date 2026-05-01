@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
 from app.dependencies import require_auth
 from app.middleware import register_middlewares
-from app.routers import account, bill, category, tag, statistics, export, import_data, auth, llm, avatar, admin
+from app.routers import account, bill, category, tag, statistics, export, import_data, auth, llm, admin, avatar
 
 SERVER_DIR = Path(__file__).resolve().parent.parent
 ENV = os.getenv("APP_ENV", "development")
@@ -68,17 +68,17 @@ app.add_middleware(
 register_middlewares(app)
 
 app.include_router(auth.router)
-app.include_router(account.router)
-app.include_router(bill.router)
-app.include_router(category.router)
-app.include_router(tag.router)
-app.include_router(statistics.router)
-app.include_router(export.router)
-app.include_router(import_data.router)
-app.include_router(llm.router)
-app.include_router(llm.stream_router)
-app.include_router(avatar.router)
-app.include_router(admin.router)
+app.include_router(account.router, dependencies=[Depends(require_auth)])
+app.include_router(bill.router, dependencies=[Depends(require_auth)])
+app.include_router(category.router, dependencies=[Depends(require_auth)])
+app.include_router(tag.router, dependencies=[Depends(require_auth)])
+app.include_router(statistics.router, dependencies=[Depends(require_auth)])
+app.include_router(export.router, dependencies=[Depends(require_auth)])
+app.include_router(import_data.router, dependencies=[Depends(require_auth)])
+app.include_router(llm.router, dependencies=[Depends(require_auth)])
+app.include_router(llm.stream_router)  # stream_router 内部自行处理认证
+app.include_router(admin.router)  # admin 内部有 require_admin 依赖
+app.include_router(avatar.router)  # avatar 内部有 require_auth 依赖
 
 
 @app.get("/health", tags=["系统"])

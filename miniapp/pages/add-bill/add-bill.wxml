@@ -1,0 +1,95 @@
+<view class="add-bill-page">
+  <!-- 类型切换 -->
+  <view class="type-switch">
+    <view class="type-item {{billType === 1 ? 'active' : ''}}" data-type="1" bindtap="onTypeChange">支出</view>
+    <view class="type-item {{billType === 2 ? 'active' : ''}}" data-type="2" bindtap="onTypeChange">收入</view>
+  </view>
+
+  <!-- 金额输入 -->
+  <view class="amount-section">
+    <text class="amount-label">金额</text>
+    <view class="amount-display">
+      <text class="amount-currency">¥</text>
+      <text class="amount-value {{amount ? '' : 'placeholder'}}">{{amount || '0.00'}}</text>
+    </view>
+
+    <!-- 分类选择 -->
+    <view class="cat-select" wx:if="{{amount}}" bindtap="onToggleCategoryPicker">
+      <text class="cat-icon">{{selectedCategoryIcon || '💰'}}</text>
+      <text class="cat-name">{{selectedCategoryName || '选择分类'}}</text>
+      <text class="cat-arrow">▸</text>
+    </view>
+  </view>
+
+  <!-- 数字键盘 -->
+  <view wx:if="{{!showCategoryPicker && !showAccountPicker && !showTagPicker}}" class="numpad">
+    <view wx:for="{{[1,2,3,4,5,6,7,8,9,'.',0,'del']}}" wx:key="*this" class="numpad-key {{item === 'del' ? 'key-del' : ''}}" data-key="{{item}}" bindtap="onAmountTap">
+      <text wx:if="{{item === 'del'}}">⌫</text>
+      <text wx:else>{{item}}</text>
+    </view>
+  </view>
+
+  <!-- 分类选择面板 -->
+  <view wx:if="{{showCategoryPicker}}" class="picker-panel">
+    <view wx:for="{{billType === 1 ? expenseFlatCats : incomeFlatCats}}" wx:key="id" class="picker-item {{categoryId === item.id ? 'active' : ''}}" data-id="{{item.id}}" data-name="{{item.name}}" data-icon="{{item.icon}}" bindtap="onSelectCategory">
+      <text class="picker-icon">{{item.icon || '📌'}}</text>
+      <text class="picker-name">{{item.name}}</text>
+    </view>
+  </view>
+
+  <!-- 账户选择面板 -->
+  <view wx:if="{{showAccountPicker}}" class="picker-panel">
+    <view wx:for="{{accounts}}" wx:key="id" class="picker-item {{accountId === item.id ? 'active' : ''}}" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="onSelectAccount">
+      <text class="picker-icon">{{item.icon || '💳'}}</text>
+      <text class="picker-name">{{item.name}}</text>
+    </view>
+  </view>
+
+  <!-- 标签选择面板 -->
+  <view wx:if="{{showTagPicker}}" class="picker-panel">
+    <view wx:for="{{allTags}}" wx:key="id" class="picker-item {{selectedTags.indexOf(item.id) >= 0 ? 'active' : ''}}" data-id="{{item.id}}" bindtap="onSelectTag">
+      <text class="picker-icon">🏷️</text>
+      <text class="picker-name">{{item.name}}</text>
+    </view>
+  </view>
+
+  <!-- 其他信息 -->
+  <view class="extra-info">
+    <view class="extra-row">
+      <text class="extra-label">{{selectedAccountName || '选择账户'}}</text>
+      <view class="extra-actions">
+        <view bindtap="onToggleAccountPicker" class="extra-btn">切换</view>
+      </view>
+    </view>
+    <view class="extra-row">
+      <text class="extra-label">日期</text>
+      <picker mode="date" value="{{billDate}}" bindchange="onDateChange">
+        <text class="extra-value">{{billDate}}</text>
+      </picker>
+    </view>
+    <view class="extra-row">
+      <text class="extra-label">时间</text>
+      <input class="extra-input" placeholder="可选" placeholder-class="placeholder" value="{{billTime}}" bindinput="onTimeInput" />
+    </view>
+    <view class="extra-row">
+      <text class="extra-label">备注</text>
+      <input class="extra-input flex-1" placeholder="添加备注" placeholder-class="placeholder" value="{{remark}}" bindinput="onRemarkInput" />
+    </view>
+    <view class="extra-row">
+      <text class="extra-label">标签</text>
+      <view class="tag-bar" bindtap="onToggleTagPicker">
+        <text wx:if="{{selectedTags.length === 0}}" class="text-muted">选择标签</text>
+        <view wx:else class="tag-dots">
+          <text wx:for="{{selectedTags}}" wx:key="*this" class="tag-dot-sm">●</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提交 -->
+  <view class="submit-section">
+    <button class="submit-btn" bindtap="onSubmit" loading="{{submitting}}" disabled="{{submitting}}">
+      {{submitting ? '提交中...' : (isEdit ? '更新账单' : '记一笔')}}
+    </button>
+  </view>
+</view>

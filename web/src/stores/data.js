@@ -241,3 +241,71 @@ export const useStatisticsStore = defineStore('statistics', () => {
     fetchOverview, fetchCategoryStats, fetchTrend, fetchBalanceTrend,
   }
 })
+
+export const useDataStore = defineStore('data', () => {
+  const accounts = ref([])
+  const expenseCategories = ref([])
+  const incomeCategories = ref([])
+  const tags = ref([])
+  const loaded = ref(false)
+
+  async function loadAll() {
+    if (loaded.value) return
+    try {
+      const [accRes, expRes, incRes, tagRes] = await Promise.all([
+        accountApi.list(),
+        categoryApi.list({ type: 1 }),
+        categoryApi.list({ type: 2 }),
+        tagApi.list(),
+      ])
+      accounts.value = accRes.data?.data || accRes.data || []
+      expenseCategories.value = expRes.data?.data || expRes.data || []
+      incomeCategories.value = incRes.data?.data || incRes.data || []
+      tags.value = tagRes.data?.data || tagRes.data || []
+      loaded.value = true
+    } catch (e) {
+      console.error('Failed to load data:', e)
+    }
+  }
+
+  async function refreshAccounts() {
+    try {
+      const res = await accountApi.list()
+      accounts.value = res.data?.data || res.data || []
+    } catch (e) {
+      console.error('Failed to refresh accounts:', e)
+    }
+  }
+
+  async function refreshTags() {
+    try {
+      const res = await tagApi.list()
+      tags.value = res.data?.data || res.data || []
+    } catch (e) {
+      console.error('Failed to refresh tags:', e)
+    }
+  }
+
+  function getAccountName(id) {
+    return accounts.value.find((a) => a.id === id)?.name || ''
+  }
+
+  function getCategoryName(id) {
+    const find = (cats) => {
+      for (const c of cats) {
+        if (c.id === id) return c.name
+        if (c.children) {
+          const found = find(c.children)
+          if (found) return found
+        }
+      }
+      return ''
+    }
+    return find(expenseCategories.value) || find(incomeCategories.value) || ''
+  }
+
+  return {
+    accounts, expenseCategories, incomeCategories, tags, loaded,
+    loadAll, refreshAccounts, refreshTags, getAccountName, getCategoryName,
+  }
+})

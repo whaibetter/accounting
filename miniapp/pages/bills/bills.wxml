@@ -1,0 +1,97 @@
+<view class="bills-container">
+  <!-- 月份切换 -->
+  <view class="month-bar card">
+    <view class="month-btn" bindtap="onPrevMonth">◀</view>
+    <text class="month-text">{{currentMonth}}</text>
+    <view class="month-btn" bindtap="onNextMonth">▶</view>
+  </view>
+
+  <!-- 筛选栏 -->
+  <view class="filter-bar card">
+    <view class="filter-summary">
+      <text class="filter-count">共 {{total}} 条</text>
+      <view class="filter-toggle {{showFilter ? 'active' : ''}}" bindtap="onToggleFilter">
+        <text>筛选</text>
+      </view>
+    </view>
+
+    <!-- 展开筛选 -->
+    <view wx:if="{{showFilter}}" class="filter-panel">
+      <view class="filter-section">
+        <text class="filter-section-title">类型</text>
+        <view class="filter-tags">
+          <view class="filter-tag {{filterType === 0 ? 'active' : ''}}" data-type="0" bindtap="onFilterType">全部</view>
+          <view class="filter-tag {{filterType === 1 ? 'active' : ''}}" data-type="1" bindtap="onFilterType">支出</view>
+          <view class="filter-tag {{filterType === 2 ? 'active' : ''}}" data-type="2" bindtap="onFilterType">收入</view>
+        </view>
+      </view>
+
+      <view class="filter-section">
+        <text class="filter-section-title">账户</text>
+        <view class="filter-tags">
+          <view
+            wx:for="{{accounts}}" wx:key="id"
+            class="filter-tag {{filterAccountId === item.id ? 'active' : ''}}"
+            data-id="{{item.id}}" bindtap="onFilterAccount"
+          >{{item.name}}</view>
+        </view>
+      </view>
+
+      <view class="filter-actions">
+        <view class="filter-btn reset" bindtap="onResetFilter">重置</view>
+        <view class="filter-btn apply" bindtap="onApplyFilter">应用</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 账单列表 -->
+  <view wx:if="{{bills.length > 0}}" class="bill-list">
+    <view wx:for="{{bills}}" wx:key="id" class="bill-card">
+      <view class="bill-main">
+        <view class="bill-left">
+          <view class="bill-icon">{{item.category_icon || '📌'}}</view>
+          <view class="bill-info">
+            <text class="bill-name">{{item.category_name}}</text>
+            <text class="bill-date">{{item.bill_date}}</text>
+          </view>
+        </view>
+        <view class="bill-right">
+          <text class="bill-amount {{item.type === 2 ? 'text-income' : item.type === 3 ? 'text-primary' : 'text-expense'}}">
+            {{item.type === 2 ? '+' : item.type === 3 ? '⇄' : '-'}}{{item.amount.toFixed(2)}}
+          </text>
+          <text class="bill-account">{{item.account_name}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{item.remark || item.tags.length > 0}}" class="bill-extra">
+        <text wx:if="{{item.remark}}" class="bill-remark">💬 {{item.remark}}</text>
+        <view wx:if="{{item.tags.length > 0}}" class="bill-tags">
+          <text wx:for="{{item.tags}}" wx:key="id" wx:for-item="tag" class="tag-dot" style="background-color: {{tag.color || '#818CF8'}};">{{tag.name}}</text>
+        </view>
+      </view>
+
+      <view class="bill-actions">
+        <view class="bill-action" data-id="{{item.id}}" bindtap="onEdit">编辑</view>
+        <view class="bill-action danger" data-id="{{item.id}}" bindtap="onDelete">删除</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="empty-hint">
+    <text>暂无账单记录</text>
+  </view>
+
+  <!-- 加载更多 -->
+  <view wx:if="{{hasMore && bills.length > 0}}" class="load-more">
+    <text class="text-muted">上拉加载更多</text>
+  </view>
+
+  <view wx:if="{{!hasMore && bills.length > 0}}" class="load-more">
+    <text class="text-muted">— 没有更多了 —</text>
+  </view>
+
+  <!-- 悬浮按钮 -->
+  <view class="fab" bindtap="onAddBill">
+    <text>+</text>
+  </view>
+</view>

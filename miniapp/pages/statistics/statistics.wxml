@@ -1,0 +1,81 @@
+<view class="stats-page">
+  <!-- 周期切换 -->
+  <view class="period-bar card">
+    <view class="period-nav">
+      <view class="period-btn" bindtap="onPrev">◀</view>
+      <view class="period-center">
+        <view class="period-type-tabs">
+          <view class="pt-tab {{periodType === 'month' ? 'active' : ''}}" data-type="month" bindtap="onChangePeriodType">月</view>
+          <view class="pt-tab {{periodType === 'year' ? 'active' : ''}}" data-type="year" bindtap="onChangePeriodType">年</view>
+        </view>
+        <text class="period-text">{{periodType === 'month' ? currentPeriod : currentYear}}</text>
+      </view>
+      <view class="period-btn" bindtap="onNext">▶</view>
+    </view>
+  </view>
+
+  <!-- 概览 -->
+  <view class="stats-overview card">
+    <view class="so-row">
+      <view class="so-item">
+        <text class="so-val text-income">¥{{overview.total_income.toFixed(0)}}</text>
+        <text class="so-label">收入</text>
+      </view>
+      <view class="so-item">
+        <text class="so-val text-expense">¥{{overview.total_expense.toFixed(0)}}</text>
+        <text class="so-label">支出</text>
+      </view>
+      <view class="so-item">
+        <text class="so-val {{overview.balance >= 0 ? 'text-income' : 'text-expense'}}">¥{{overview.balance.toFixed(0)}}</text>
+        <text class="so-label">结余</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分类 Tab -->
+  <view class="chart-tabs">
+    <view class="chart-tab {{activeTab === 'expense' ? 'active' : ''}}" data-tab="expense" bindtap="onTabChange">支出排行</view>
+    <view class="chart-tab {{activeTab === 'income' ? 'active' : ''}}" data-tab="income" bindtap="onTabChange">收入排行</view>
+  </view>
+
+  <!-- 分类列表 -->
+  <view wx:if="{{activeTab === 'expense' && expenseStats.length > 0}}" class="cat-stat-list">
+    <view wx:for="{{expenseStats}}" wx:key="category_id" class="cat-stat-item">
+      <view class="csi-left">
+        <text class="csi-icon">{{item.category_icon || '📌'}}</text>
+        <text class="csi-name">{{item.category_name}}</text>
+      </view>
+      <view class="csi-right">
+        <view class="csi-bar-wrap">
+          <view class="csi-bar" style="width: {{item.percentage}}%; background-color: var(--color-expense);"></view>
+        </view>
+        <view class="csi-info">
+          <text class="csi-amount">¥{{item.amount.toFixed(0)}}</text>
+          <text class="csi-pct">{{item.percentage.toFixed(1)}}%</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 'income' && incomeStats.length > 0}}" class="cat-stat-list">
+    <view wx:for="{{incomeStats}}" wx:key="category_id" class="cat-stat-item">
+      <view class="csi-left">
+        <text class="csi-icon">{{item.category_icon || '📌'}}</text>
+        <text class="csi-name">{{item.category_name}}</text>
+      </view>
+      <view class="csi-right">
+        <view class="csi-bar-wrap">
+          <view class="csi-bar" style="width: {{item.percentage}}%; background-color: var(--color-income);"></view>
+        </view>
+        <view class="csi-info">
+          <text class="csi-amount">¥{{item.amount.toFixed(0)}}</text>
+          <text class="csi-pct">{{item.percentage.toFixed(1)}}%</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{(activeTab === 'expense' && expenseStats.length === 0) || (activeTab === 'income' && incomeStats.length === 0)}}" class="empty-hint">
+    <text>暂无数据</text>
+  </view>
+</view>

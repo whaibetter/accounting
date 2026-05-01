@@ -204,11 +204,9 @@ class TagCreate(BaseModel):
 
     Attributes:
         name: 标签名称 (1-50字符，唯一)
-        icon: 图标标识
         color: 颜色标识
     """
     name: str = Field(..., min_length=1, max_length=50)
-    icon: str = Field(default="")
     color: str = Field(default="")
 
 
@@ -218,11 +216,9 @@ class TagUpdate(BaseModel):
 
     Attributes:
         name: 标签名称
-        icon: 图标标识
         color: 颜色标识
     """
     name: Optional[str] = Field(default=None, min_length=1, max_length=50)
-    icon: Optional[str] = None
     color: Optional[str] = None
 
 
@@ -233,13 +229,11 @@ class TagOut(BaseModel):
     Attributes:
         id: 标签ID
         name: 标签名称
-        icon: 图标标识
         color: 颜色标识
         created_at: 创建时间
     """
     id: int
     name: str
-    icon: str
     color: str
     created_at: datetime
 
@@ -306,7 +300,6 @@ class TagBrief(BaseModel):
     """标签简要信息（嵌入账单响应中）。"""
     id: int
     name: str
-    icon: str
     color: str
 
     model_config = {"from_attributes": True}

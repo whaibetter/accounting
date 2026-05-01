@@ -3,19 +3,16 @@
     <div class="profile-header">
       <div class="avatar-circle">
         <AvatarUploader
-          v-if="authStore.user?.is_admin && authStore.user?.avatar"
-          :modelValue="authStore.user.avatar"
+          :modelValue="authStore.user?.avatar || ''"
           :size="56"
           @uploaded="onAvatarUploaded"
         />
-        <img v-else-if="authStore.user?.avatar" :src="getAvatarUrl(authStore.user.avatar)" class="avatar-img" />
-        <span v-else class="avatar-letter">{{ authStore.nickname?.charAt(0) || '👤' }}</span>
       </div>
       <div class="header-info">
         <div class="profile-name">{{ authStore.nickname || '记账用户' }}</div>
         <div class="profile-desc">@{{ authStore.username }} · 轻松管理你的财务</div>
       </div>
-      <div v-if="authStore.user?.is_admin" class="edit-profile-btn" @click="showEditProfile = true">编辑</div>
+      <div class="edit-profile-btn" @click="openEditProfile">编辑</div>
     </div>
 
     <div class="asset-overview card">
@@ -161,6 +158,14 @@
           <h3>编辑个人信息</h3>
           <span class="modal-close" @click="showEditProfile = false">✕</span>
         </div>
+        <div class="profile-avatar-edit">
+          <AvatarUploader
+            :modelValue="profileForm.avatar || ''"
+            :size="72"
+            @uploaded="onEditAvatarUploaded"
+          />
+          <div class="avatar-hint">点击更换头像</div>
+        </div>
         <div class="form-group">
           <label>昵称</label>
           <input type="text" v-model="profileForm.nickname" placeholder="输入昵称" />
@@ -239,6 +244,7 @@ const profileForm = ref({
   nickname: authStore.user?.nickname || '',
   email: authStore.user?.email || '',
   phone: authStore.user?.phone || '',
+  avatar: authStore.user?.avatar || '',
 })
 
 const totalAssets = computed(() => accountStore.totalAssets())
@@ -345,7 +351,22 @@ async function submitEditProfile() {
   }
 }
 
+function openEditProfile() {
+  profileForm.value = {
+    nickname: authStore.user?.nickname || '',
+    email: authStore.user?.email || '',
+    phone: authStore.user?.phone || '',
+    avatar: authStore.user?.avatar || '',
+  }
+  showEditProfile.value = true
+}
+
 async function onAvatarUploaded(avatarUrl) {
+  await authStore.fetchProfile()
+}
+
+async function onEditAvatarUploaded(avatarUrl) {
+  profileForm.value.avatar = avatarUrl
   await authStore.fetchProfile()
 }
 
@@ -624,6 +645,21 @@ onMounted(() => {
   color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
+}
+
+.profile-avatar-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar-hint {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .form-group {

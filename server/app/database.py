@@ -1,11 +1,32 @@
+"""
+数据库连接配置与会话管理模块。
+
+功能描述：
+    - 配置SQLite数据库连接
+    - 提供数据库会话的依赖注入
+    - 管理数据库表的创建与预设数据的初始化
+
+使用方法：
+    from app.database import get_db, engine, Base
+
+    # 在路由中通过依赖注入获取数据库会话
+    @router.get("/items")
+    def list_items(db: Session = Depends(get_db)):
+        ...
+
+参数说明：
+    DATABASE_URL: SQLite数据库文件路径，默认为 data/accounting.db
+
+异常处理：
+    - 数据库文件目录不存在时自动创建
+    - 首次启动时自动执行表创建和预设数据初始化
+"""
+
 import os
-import logging
 from pathlib import Path
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
-
-logger = logging.getLogger("database")
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -26,6 +47,17 @@ class Base(DeclarativeBase):
 
 
 def get_db():
+    """
+    获取数据库会话的依赖注入函数。
+
+    Yields:
+        Session: SQLAlchemy数据库会话对象
+
+    使用示例：
+        @router.get("/accounts")
+        def list_accounts(db: Session = Depends(get_db)):
+            return crud.get_accounts(db)
+    """
     db = SessionLocal()
     try:
         yield db
@@ -34,156 +66,42 @@ def get_db():
 
 
 def init_db():
-    from app.models import User, Account, Category, Tag, Bill, BillTag, SystemConfig, OperationLog  # noqa: F401
+    """
+    初始化数据库。
+
+    执行以下操作：
+        1. 创建所有数据表（如果不存在）
+        2. 插入预设分类数据（如果分类表为空）
+        3. 初始化认证系统（密码哈希、JWT密钥）
+
+    此函数应在应用启动时调用一次。
+    """
+    from app.models import Account, Category, SystemConfig  # noqa: F401
     Base.metadata.create_all(bind=engine)
-
-    _migrate_db()
-
-    from app.auth import init_auth
-    init_auth()
 
     db = SessionLocal()
     try:
-        _assign_orphan_data_to_admin(db)
-        _ensure_admin_role(db)
         _seed_categories(db)
         _seed_default_account(db)
     finally:
         db.close()
 
-
-def _migrate_db():
-    import sqlalchemy
-    insp = sqlalchemy.inspect(engine)
-
-    if 'tag' in insp.get_table_names():
-        tag_columns = [col['name'] for col in insp.get_columns('tag')]
-        if 'icon' not in tag_columns:
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE tag ADD COLUMN icon VARCHAR(50) DEFAULT ''"))
-                conn.commit()
-
-    if 'account' in insp.get_table_names():
-        account_columns = [col['name'] for col in insp.get_columns('account')]
-        if 'user_id' not in account_columns:
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE account ADD COLUMN user_id INTEGER"))
-                conn.commit()
-            logger.info("已为account表添加user_id列")
-
-    if 'category' in insp.get_table_names():
-        category_columns = [col['name'] for col in insp.get_columns('category')]
-        if 'user_id' not in category_columns:
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE category ADD COLUMN user_id INTEGER"))
-                conn.commit()
-            logger.info("已为category表添加user_id列")
-
-    if 'tag' in insp.get_table_names():
-        tag_columns = [col['name'] for col in insp.get_columns('tag')]
-        if 'user_id' not in tag_columns:
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE tag ADD COLUMN user_id INTEGER"))
-                conn.commit()
-            logger.info("已为tag表添加user_id列")
-
-    if 'user' in insp.get_table_names():
-        user_columns = [col['name'] for col in insp.get_columns('user')]
-        if 'is_admin' not in user_columns:
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE \"user\" ADD COLUMN is_admin INTEGER DEFAULT 0"))
-                conn.commit()
-            logger.info("已为user表添加is_admin列")
-        if 'status' not in user_columns:
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE \"user\" ADD COLUMN status INTEGER DEFAULT 1"))
-                conn.commit()
-            logger.info("已为user表添加status列")
-
-    if 'account' in insp.get_table_names():
-        with engine.connect() as conn:
-            try:
-                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_account_user_id ON account(user_id)"))
-                conn.commit()
-            except Exception:
-                pass
-    if 'category' in insp.get_table_names():
-        with engine.connect() as conn:
-            try:
-                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_category_user_id ON category(user_id)"))
-                conn.commit()
-            except Exception:
-                pass
-    if 'tag' in insp.get_table_names():
-        with engine.connect() as conn:
-            try:
-                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tag_user_id ON tag(user_id)"))
-                conn.commit()
-            except Exception:
-                pass
-
-    if 'operation_log' in insp.get_table_names():
-        log_columns = [col['name'] for col in insp.get_columns('operation_log')]
-        new_cols = {
-            'method': "VARCHAR(10) DEFAULT ''",
-            'path': "VARCHAR(200) DEFAULT ''",
-            'status': "VARCHAR(20) DEFAULT 'success'",
-            'duration_ms': "INTEGER",
-            'extra_data': "TEXT",
-        }
-        for col_name, col_def in new_cols.items():
-            if col_name not in log_columns:
-                with engine.connect() as conn:
-                    conn.execute(text(f"ALTER TABLE operation_log ADD COLUMN {col_name} {col_def}"))
-                    conn.commit()
-                logger.info(f"已为operation_log表添加{col_name}列")
-        with engine.connect() as conn:
-            try:
-                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_operation_log_operator_id ON operation_log(operator_id)"))
-                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_operation_log_action ON operation_log(action)"))
-                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_operation_log_created_at ON operation_log(created_at)"))
-                conn.commit()
-            except Exception:
-                pass
-
-
-def _assign_orphan_data_to_admin(db):
-    from app.models import User, Account, Category, Tag
-
-    admin = db.query(User).filter(User.username == "admin").first()
-    if not admin:
-        return
-
-    orphan_accounts = db.query(Account).filter(Account.user_id.is_(None)).all()
-    if orphan_accounts:
-        for acc in orphan_accounts:
-            acc.user_id = admin.id
-        db.commit()
-        logger.info(f"已将 {len(orphan_accounts)} 个孤立账户分配给admin用户")
-
-    orphan_categories = db.query(Category).filter(Category.user_id.is_(None)).all()
-    if orphan_categories:
-        for cat in orphan_categories:
-            cat.user_id = admin.id
-        db.commit()
-        logger.info(f"已将 {len(orphan_categories)} 个孤立分类分配给admin用户")
-
-    orphan_tags = db.query(Tag).filter(Tag.user_id.is_(None)).all()
-    if orphan_tags:
-        for tag in orphan_tags:
-            tag.user_id = admin.id
-        db.commit()
-        logger.info(f"已将 {len(orphan_tags)} 个孤立标签分配给admin用户")
+    from app.auth import init_auth
+    init_auth()
 
 
 def _seed_categories(db):
-    from app.models import Category as CatModel, User
+    """
+    插入预设分类数据。
 
-    admin = db.query(User).filter(User.username == "admin").first()
-    if not admin:
-        return
+    当分类表为空时，插入系统预设的支出和收入分类。
+    分类采用二级结构：大类 → 子分类。
 
-    if db.query(CatModel).filter(CatModel.user_id == admin.id).first() is not None:
+    Args:
+        db: SQLAlchemy数据库会话
+    """
+    from app.models import Category as CatModel
+    if db.query(CatModel).first() is not None:
         return
 
     expense_categories = [
@@ -210,36 +128,48 @@ def _seed_categories(db):
 
     sort = 0
     for name, icon, children in expense_categories:
-        parent = CatModel(user_id=admin.id, name=name, type=1, icon=icon, sort_order=sort)
+        parent = CatModel(
+            name=name, type=1, icon=icon, sort_order=sort
+        )
         db.add(parent)
         db.flush()
         for child_name in children:
-            db.add(CatModel(user_id=admin.id, name=child_name, type=1, parent_id=parent.id, sort_order=sort))
+            db.add(CatModel(
+                name=child_name, type=1, parent_id=parent.id,
+                sort_order=sort
+            ))
         sort += 1
 
     for name, icon, children in income_categories:
-        parent = CatModel(user_id=admin.id, name=name, type=2, icon=icon, sort_order=sort)
+        parent = CatModel(
+            name=name, type=2, icon=icon, sort_order=sort
+        )
         db.add(parent)
         db.flush()
         for child_name in children:
-            db.add(CatModel(user_id=admin.id, name=child_name, type=2, parent_id=parent.id, sort_order=sort))
+            db.add(CatModel(
+                name=child_name, type=2, parent_id=parent.id,
+                sort_order=sort
+            ))
         sort += 1
 
     db.commit()
 
 
 def _seed_default_account(db):
-    from app.models import Account as AccModel, User
+    """
+    创建默认资金账户。
 
-    admin = db.query(User).filter(User.username == "admin").first()
-    if not admin:
-        return
+    当账户表为空时，创建一个"现金"默认账户。
 
-    if db.query(AccModel).filter(AccModel.user_id == admin.id).first() is not None:
+    Args:
+        db: SQLAlchemy数据库会话
+    """
+    from app.models import Account as AccModel
+    if db.query(AccModel).first() is not None:
         return
 
     default = AccModel(
-        user_id=admin.id,
         name="现金",
         type=1,
         icon="cash",
@@ -251,13 +181,3 @@ def _seed_default_account(db):
     )
     db.add(default)
     db.commit()
-
-
-def _ensure_admin_role(db):
-    from app.models import User
-
-    admin = db.query(User).filter(User.username == "admin").first()
-    if admin and admin.is_admin != 1:
-        admin.is_admin = 1
-        db.commit()
-        logger.info("已将admin用户设置为管理员")

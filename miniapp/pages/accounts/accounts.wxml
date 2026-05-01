@@ -1,0 +1,47 @@
+<view class="page-con">
+  <view wx:for="{{accounts}}" wx:key="id" class="account-card card">
+    <view class="ac-header">
+      <view class="ac-icon" wx:if="{{item.icon}}">{{item.icon}}</view>
+      <view class="ac-icon" wx:else>💳</view>
+      <view class="ac-info">
+        <text class="ac-name">{{item.name}}</text>
+        <text class="text-muted" style="font-size: 24rpx;">{{item.type === 1 ? '现金' : item.type === 2 ? '银行卡' : '其他'}}</text>
+      </view>
+      <text class="ac-balance">¥{{item.balance.toFixed(2)}}</text>
+    </view>
+    <view class="ac-actions">
+      <view class="ac-btn" data-id="{{item.id}}" bindtap="onEdit">编辑</view>
+      <view class="ac-btn danger" data-id="{{item.id}}" bindtap="onDelete">删除</view>
+    </view>
+  </view>
+
+  <view class="add-btn" bindtap="onShowForm">+ 添加账户</view>
+
+  <!-- 表单弹层 -->
+  <view wx:if="{{showForm}}" class="modal-mask" bindtap="onHideForm"></view>
+  <view wx:if="{{showForm}}" class="form-panel">
+    <text class="form-title">{{isEdit ? '编辑账户' : '新建账户'}}</text>
+
+    <view class="form-item">
+      <text class="form-label">名称</text>
+      <input class="form-input" value="{{form.name}}" data-key="name" bindinput="onFormField" placeholder="账户名称" placeholder-class="placeholder" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">类型</text>
+      <view class="form-types">
+        <view wx:for="{{[{v:1,n:'现金'},{v:2,n:'银行卡'},{v:3,n:'信用卡'},{v:4,n:'支付宝'},{v:5,n:'微信'},{v:6,n:'其他'}]}}" wx:key="v" class="ft-item {{form.type === item.v ? 'active' : ''}}" data-value="{{item.v}}" bindtap="onFormType">{{item.n}}</view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">初始余额</text>
+      <input class="form-input" type="digit" value="{{form.initial_balance}}" data-key="initial_balance" bindinput="onFormField" placeholder="0" placeholder-class="placeholder" />
+    </view>
+
+    <view class="form-btns">
+      <view class="form-btn cancel" bindtap="onHideForm">取消</view>
+      <view class="form-btn save" bindtap="onSave">{{submitting ? '保存中...' : '保存'}}</view>
+    </view>
+  </view>
+</view>

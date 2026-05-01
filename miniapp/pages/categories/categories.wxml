@@ -1,0 +1,50 @@
+<view class="page-con">
+  <view class="ct-tabs card">
+    <view class="ct-tab {{activeTab === 'expense' ? 'active' : ''}}" data-tab="expense" bindtap="onTab">支出分类</view>
+    <view class="ct-tab {{activeTab === 'income' ? 'active' : ''}}" data-tab="income" bindtap="onTab">收入分类</view>
+  </view>
+
+  <view class="cat-tree">
+    <block wx:for="{{activeTab === 'expense' ? expenseCats : incomeCats}}" wx:key="id">
+      <view class="cat-node card">
+        <view class="cn-main">
+          <text class="cn-icon">{{item.icon || '📂'}}</text>
+          <text class="cn-name">{{item.name}}</text>
+          <view class="cn-btns">
+            <view class="cn-btn" data-id="{{item.id}}" bindtap="onEdit">编辑</view>
+            <view class="cn-btn danger" data-id="{{item.id}}" bindtap="onDelete">删除</view>
+          </view>
+        </view>
+        <!-- 子分类 -->
+        <view wx:if="{{item.children && item.children.length > 0}}" class="cn-children">
+          <view wx:for="{{item.children}}" wx:key="id" wx:for-item="child" class="cn-child">
+            <text class="cn-c-icon">{{child.icon || '📌'}}</text>
+            <text class="cn-c-name">{{child.name}}</text>
+            <view class="cn-btn" data-id="{{child.id}}" bindtap="onEdit">编辑</view>
+            <view class="cn-btn danger" data-id="{{child.id}}" bindtap="onDelete">删除</view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view class="add-btn" data-type="{{activeTab === 'expense' ? 1 : 2}}" bindtap="onShowForm">+ 添加分类</view>
+</view>
+
+<!-- 弹层 -->
+<view wx:if="{{showForm}}" class="modal-mask" bindtap="onHideForm"></view>
+<view wx:if="{{showForm}}" class="form-panel">
+  <text class="form-title">{{isEdit ? '编辑分类' : '新建分类'}}</text>
+  <view class="form-item">
+    <text class="form-label">名称</text>
+    <input class="form-input" value="{{form.name}}" data-key="name" bindinput="onFormField" placeholder="分类名称" placeholder-class="placeholder" />
+  </view>
+  <view class="form-item">
+    <text class="form-label">图标</text>
+    <input class="form-input" value="{{form.icon}}" data-key="icon" bindinput="onFormField" placeholder="emoji图标" placeholder-class="placeholder" />
+  </view>
+  <view class="form-btns">
+    <view class="form-btn cancel" bindtap="onHideForm">取消</view>
+    <view class="form-btn save" bindtap="onSave">{{submitting ? '保存中...' : '保存'}}</view>
+  </view>
+</view>

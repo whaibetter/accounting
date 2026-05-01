@@ -1,18 +1,17 @@
 import os
 import uuid
 import logging
-from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 
-from app.auth import update_user_profile, get_user_by_id
-from app.dependencies import require_auth, require_admin
+from app.auth import update_user_profile
+from app.dependencies import require_auth
 
 logger = logging.getLogger("avatar")
 
-router = APIRouter(prefix="/api/v1/avatar", tags=["头像管理"], dependencies=[Depends(require_auth)])
+router = APIRouter(prefix="/api/v1/avatar", tags=["头像管理"])
 
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "avatars"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -20,11 +19,18 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_SIZE = 2 * 1024 * 1024
 
+MIME_MAP = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
+
 
 @router.post("/upload", summary="上传头像")
 async def upload_avatar(
     file: UploadFile = File(...),
-    user_id: int = Depends(require_admin),
+    user_id: int = Depends(require_auth),
 ):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="仅支持 JPG、PNG、WebP 格式的图片")
@@ -64,4 +70,6 @@ def get_avatar_file(filename: str):
     filepath = UPLOAD_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="头像文件不存在")
-    return FileResponse(filepath, media_type="image/jpeg")
+    ext = filepath.suffix.lower()
+    media_type = MIME_MAP.get(ext, "image/jpeg")
+    return FileResponse(filepath, media_type=media_type)

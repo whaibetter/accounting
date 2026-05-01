@@ -158,9 +158,6 @@
         <button class="btn-primary" @click="parseText" :disabled="parsing" style="flex: 1">
           {{ parsing ? '解析中...' : '解析' }}
         </button>
-        <button class="btn-primary" @click="parseAndImport" :disabled="parsing" style="flex: 1; background: linear-gradient(135deg, var(--success), #5ca85c)">
-          解析并导入
-        </button>
       </div>
     </div>
 
@@ -203,7 +200,10 @@
             </div>
           </div>
         </div>
-        <div v-if="parseRequest || parseResponse || parseRawResponse" class="debug-section">
+        <button class="btn-primary import-btn" @click="doImport" :disabled="importing" v-if="!importResult">
+          {{ importing ? '导入中...' : '✅ 确认导入' }}
+        </button>
+        <div v-if="isAdmin && (parseRequest || parseResponse || parseRawResponse)" class="debug-section">
           <div class="debug-toggle" @click="parseExpanded.request = !parseExpanded.request">
             <span class="toggle-arrow" :class="{ open: parseExpanded.request }">▶</span>
             <span>请求信息</span>
@@ -260,7 +260,7 @@
       </div>
       <div v-else class="empty-state" style="padding: 20px">
         <div class="text">{{ parseResult.error || '未能解析出有效数据' }}</div>
-        <div v-if="parseRawResponse" class="error-raw">
+        <div v-if="isAdmin && parseRawResponse" class="error-raw">
           <div class="debug-toggle" @click="parseExpanded.raw = !parseExpanded.raw">
             <span class="toggle-arrow" :class="{ open: parseExpanded.raw }">▶</span>
             <span>查看原始响应</span>
@@ -432,6 +432,7 @@ const configForm = ref({
 })
 const inputText = ref('')
 const parsing = ref(false)
+const importing = ref(false)
 const testing = ref(false)
 const testResult = ref(null)
 const parseResult = ref(null)
@@ -731,20 +732,20 @@ async function parseText() {
   }
 }
 
-async function parseAndImport() {
-  if (!inputText.value.trim()) return
-  parsing.value = true
-  parseResult.value = null
-  importResult.value = null
+async function doImport() {
+  if (!parseResult.value?.bills?.length) return
+  importing.value = true
   try {
     const res = await llmApi.parseAndImport({ text: inputText.value })
     const data = res.data.data
-    parseResult.value = data.parse_result
     importResult.value = data.import_result
+    if (data.import_result.success > 0) {
+      toastSuccess(`成功导入 ${data.import_result.success} 条账单`)
+    }
   } catch (e) {
-    toastError(e.response?.data?.detail || '操作失败')
+    toastError(e.response?.data?.detail || '导入失败')
   } finally {
-    parsing.value = false
+    importing.value = false
   }
 }
 
@@ -783,6 +784,13 @@ onMounted(fetchConfig)
 .chip-delete:hover { color: var(--danger); }
 
 .save-preset-row { display: flex; gap: 8px; }
+
+.import-btn {
+  width: 100%; margin-top: 12px; padding: 14px;
+  background: linear-gradient(135deg, var(--success), #5ca85c);
+  font-size: 16px; font-weight: 700; border-radius: 12px;
+}
+.import-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .parsed-bill { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
 .parsed-type { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(212, 165, 116, 0.15); color: var(--accent); }
